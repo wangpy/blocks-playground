@@ -1,0 +1,32 @@
+0x02
+
+enum DataChangeCommands
+{
+    endOfPacket                 = 0, isLastChange is false
+    endOfChanges                = 1, isLastChange is true
+    skipBytesFew                = 2, -> ByteCountFew
+    skipBytesMany               = 3, -> ByteCountMany
+    setSequenceOfBytes          = 4, -> ByteValue -> ByteSequenceContinues (1)-> ... -> ByteValue -> ByteSequenceContinues (0)
+    setFewBytesWithValue        = 5, -> ByteCountFew -> ByteValue
+    setFewBytesWithLastValue    = 6, -> ByteCountFew
+    setManyBytesWithValue       = 7  -> ByteCountMany -> ByteValue
+};
+
+using PacketIndex            = IntegerWithBitSize<16>;
+using DataChangeCommand      = IntegerWithBitSize<3>;
+using ByteCountFew           = IntegerWithBitSize<4>;
+using ByteCountMany          = IntegerWithBitSize<8>;
+using ByteValue              = IntegerWithBitSize<8>;
+using ByteSequenceContinues  = IntegerWithBitSize<1>;
+
+MessageType(0x02) -> PacketIndex
+-> DataChangeCommand 
+-> ...
+-> ( endOfPacket | endOfChanges ) 
+
+bitwise data:
+0000
+00010 011
+000
+merged hex answer:
+=> 30 02

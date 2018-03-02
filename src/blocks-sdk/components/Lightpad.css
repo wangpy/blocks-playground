@@ -1,0 +1,18 @@
+.lightpad {
+  position: relative;
+}
+
+.lightpad .touch {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0;
+  background-color: rgba(255, 128, 0, 0.3);
+  border: 2px solid rgb(255, 128, 0);
+  border-radius: 200px;
+}
+
+.lightpad .device-name {
+  text-align: center;
+  color: white;
+}

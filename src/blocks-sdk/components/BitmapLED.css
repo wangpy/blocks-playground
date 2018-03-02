@@ -1,0 +1,23 @@
+.bitmap-led {
+  border-radius: 10px;
+  padding: 7px;
+  background-color: #222;
+  width: 374px;
+  height: 374px;
+  margin: 10px;
+}
+
+.bitmap-led-row {
+  height: 24px;
+}
+
+.bitmap-led-dot {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border: 0;
+  padding: 10px;
+  margin: 2px;
+  background-color: #333;
+  border-radius: 10px;
+}
