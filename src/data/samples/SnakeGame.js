@@ -1,4 +1,14 @@
-export const kSampleCodeSnakeGame = `// Global variables - DO NOT CALL API FUNCTIONS HERE
+export const kSampleCodeSnakeGame = `
+/*
+ * SnakeGame
+ *
+ * This is a classic 'Snake' Game to play on Lightpads.
+ *
+ * Swipe to change snake direction.
+ * Pressing harder when swiping can make snake move slowly.
+ */
+
+// Global variables - DO NOT CALL API FUNCTIONS HERE
 
 // constants
 var kStartCounter = 5;
@@ -182,13 +192,10 @@ function moveSnake() {
 }
 
 function drawMoveHint() {
-  var rgb = makeARGB(255, 0, 64, 128);
-  var pendingRgb = makeARGB(255, 255, 128, 0);
-
   // draw touch start pos
   {
     var pos = touchStartPos;
-    var c = rgb;
+    var c = makeARGB(255, 64, 64, 64);
     for (var d = -1; d <= 1; d++) {
       fillPixel(c, pos[0] - 2, pos[1] + d);
       fillPixel(c, pos[0] + 2, pos[1] + d);
@@ -200,7 +207,7 @@ function drawMoveHint() {
   // draw touch move pos
   {
     var pos = touchMovePos;
-    var c = pendingRgb;
+    var c = makeARGB(255, 128, 128, 128);
     for (var d = -1; d <= 1; d++) {
       fillPixel(c, pos[0] - 2, pos[1] + d);
       fillPixel(c, pos[0] + 2, pos[1] + d);
@@ -209,7 +216,8 @@ function drawMoveHint() {
     }
   }
 
-  // draw touch move pos
+  var rgb = makeARGB(255, 0, 64, 128);
+  var pendingRgb = makeARGB(255, 255, 128, 0);
 
   // draw arrows, highlight new dir
 
