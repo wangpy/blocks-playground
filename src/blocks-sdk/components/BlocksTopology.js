@@ -192,22 +192,23 @@ export class BlocksTopology extends React.Component<Props, State> {
           onMIDIStateChange={this.handleMIDIStateChange}
           sysex={true}
           ref={(c) => this._midiDeviceManager = c} />
-
-        {this.state.deviceTopology.map(info => {
-          if (info.deviceType === 'Lightpad') {
-            return (
-              <Lightpad
-                code={topology.state.code}
-                key={info.deviceIndex}
-                topology={topology}
-                deviceIndex={info.deviceIndex}
-                onCodeExecutionError={this.handleCodeExecutionError.bind(topology)}
-                ref={c => (c != null) ? this._devices[info.deviceIndex] = c : null} />
-            );
-          } else {
-            return null;
-          }
-        })}
+        <div class="blocks">
+          {this.state.deviceTopology.map(info => {
+            if (info.deviceType === 'Lightpad') {
+              return (
+                <Lightpad
+                  code={topology.state.code}
+                  key={info.deviceIndex}
+                  topology={topology}
+                  deviceIndex={info.deviceIndex}
+                  onCodeExecutionError={this.handleCodeExecutionError.bind(topology)}
+                  ref={c => (c != null) ? this._devices[info.deviceIndex] = c : null} />
+              );
+            } else {
+              return null;
+            }
+          })}
+        </div>
       </div>
     );
   }

@@ -1,5 +1,7 @@
 .lightpad {
   position: relative;
+  width: 400;
+  display: inline-block;
 }
 
 .lightpad .touch {

@@ -11,21 +11,32 @@
   overflow: hidden;
 }
 
+.blocks-playground-topology-area {
+  background-color: #111;
+}
+
 .blocks-playground-main-area {
   flex: 1;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .blocks-playground-topology-area {
+    width: 400px;
+  }
+
+  .blocks-playground-main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+  }
 }
 
 .blocks-playground-code-area {
   flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-.blocks-playground-topology-area {
-  width: 400px;
-  background-color: #111;
 }
 
 .blocks-playground-code-editor {

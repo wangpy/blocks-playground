@@ -11,10 +11,6 @@ type State = {
 }
 
 class App extends React.Component<Props, State> {
-  componentDidMount() {
-    document.title = "BLOCKS Playground";
-  }
-
   render() {
     return (
       <BlocksPlayground />

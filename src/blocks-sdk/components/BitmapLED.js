@@ -272,13 +272,7 @@ export class BitmapLED extends React.Component<Props, State> {
     );
   }
 
-  render() {
-    return (
-      <div className="lightpad">
-        {this.renderBitmapLED()}
-      </div>
-    );
-  }
+  render = () => this.renderBitmapLED();
 }
 
 export default BitmapLED;
