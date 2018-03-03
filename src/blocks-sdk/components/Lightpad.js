@@ -10,7 +10,6 @@ export class Lightpad extends BlocksDevice {
   _bitmapLED: ?BitmapLED;
   _element: *;
   _isMouseDown: boolean;
-  _simulatedTouches: Array<*>;
   _repaintIntervalID: ?IntervalID;
   _touches: {}
 
@@ -19,7 +18,6 @@ export class Lightpad extends BlocksDevice {
     this._bitmapLED = null;
     this._element = null;
     this._isMouseDown = false;
-    this._simulatedTouches = [];
     this._repaintIntervalID = null;
     this._touches = {};
   }
@@ -148,15 +146,6 @@ export class Lightpad extends BlocksDevice {
     this._isMouseDown = false;
   };
 
-  getSimulatedTouchIndexById(idToFind: number): number {
-    for (let i = 0; i < this._simulatedTouches.length; i++) {
-      if (i === this._simulatedTouches[i].identifier) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
   handleTouchStart = (e: TouchEvent) => {
     if (this._element === null) {
       return;
@@ -165,15 +154,15 @@ export class Lightpad extends BlocksDevice {
     const touches = e.changedTouches;
     for (let i = 0; i < touches.length; i++) {
       const touch = touches[i];
-      this._simulatedTouches.push(touch);
-      const touchIndex = this.getSimulatedTouchIndexById(touch.identifier);
+      const touchIndex = touch.identifier;
       const ex = touch.pageX - rect.left;
       const ey = touch.pageY - rect.top;
       const ez = 0.8; //const ez = (touch.force != null) ? parseFloat(touch.force) : 0.8;
-      const x = 4096 * ex / 364;
-      const y = 4096 * ey / 364;
-      const z = 255 * ez;
-      this.handleDeviceTouchStart(1 + touchIndex, parseInt(x, 10), parseInt(y, 10), parseInt(z, 10));
+      const x = parseInt(4096 * ex / 364, 10);
+      const y = parseInt(4096 * ey / 364, 10);
+      const z = parseInt(255 * ez, 10);
+      console.debug('handleTouchStart', touch.identifier, touchIndex, x, y, z);
+      this.handleDeviceTouchStart(1 + touchIndex, x, y, z);
     }
     e.preventDefault();
   };
@@ -186,14 +175,15 @@ export class Lightpad extends BlocksDevice {
     const touches = e.changedTouches;
     for (let i = 0; i < touches.length; i++) {
       const touch = touches[i];
-      const touchIndex = this.getSimulatedTouchIndexById(touch.identifier);
+      const touchIndex = touch.identifier;
       const ex = touch.pageX - rect.left;
       const ey = touch.pageY - rect.top;
       const ez = 0.8; //const ez = (touch.force != null) ? parseFloat(touch.force) : 0.8;
-      const x = 4096 * ex / 364;
-      const y = 4096 * ey / 364;
-      const z = 255 * ez;
-      this.handleDeviceTouchMove(1 + touchIndex, parseInt(x, 10), parseInt(y, 10), parseInt(z, 10));
+      const x = parseInt(4096 * ex / 364, 10);
+      const y = parseInt(4096 * ey / 364, 10);
+      const z = parseInt(255 * ez, 10);
+      console.debug('handleTouchMove', touch.identifier, touchIndex, x, y, z);
+      this.handleDeviceTouchMove(1 + touchIndex, x, y, z);
     }
     e.preventDefault();
   };
@@ -206,16 +196,15 @@ export class Lightpad extends BlocksDevice {
     const touches = e.changedTouches;
     for (let i = 0; i < touches.length; i++) {
       const touch = touches[i];
-      const touchIndex = this.getSimulatedTouchIndexById(touch.identifier);
+      const touchIndex = touch.identifier;
       const ex = touch.pageX - rect.left;
       const ey = touch.pageY - rect.top;
       const ez = 0.8; //const ez = (touch.force != null) ? parseFloat(touch.force) : 0.8;
-      const x = 4096 * ex / 364;
-      const y = 4096 * ey / 364;
-      const z = 255 * ez;
-      this.handleDeviceTouchEnd(1 + touchIndex, parseInt(x, 10), parseInt(y, 10), parseInt(z, 10));
-      // remove touch
-      this._simulatedTouches.splice(touchIndex, 1);
+      const x = parseInt(4096 * ex / 364, 10);
+      const y = parseInt(4096 * ey / 364, 10);
+      const z = parseInt(255 * ez, 10);
+      console.debug('handleTouchEnd', touch.identifier, touchIndex, x, y, z);
+      this.handleDeviceTouchEnd(1 + touchIndex, x, y, z);
     }
     e.preventDefault();
   };
@@ -258,11 +247,15 @@ export class Lightpad extends BlocksDevice {
       onMouseMove={this.handleMouseMove}
       onMouseUp={this.handleMouseUp}
       onMouseLeave={this.handleMouseUp}
-      onTouchStart={this.handleTouchStart}
-      onTouchMove={this.handleTouchMove}
-      onTouchEnd={this.handleTouchEnd}
       onTouchCancel={this.handleTouchEnd}
-      ref={(c) => this._element = c}>
+      ref={(c) => {
+        this._element = c;
+        if (c != null) {
+          c.addEventListener('touchstart', this.handleTouchStart, { passive: false });
+          c.addEventListener('touchmove', this.handleTouchMove, { passive: false });
+          c.addEventListener('touchend', this.handleTouchEnd, { passive: false });
+        }
+      }}>
       <BitmapLED device={this}
         dataOffset={113} numColumns={15} numRows={15}
         ref={(c) => this._bitmapLED = c}
