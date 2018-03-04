@@ -1,9 +1,13 @@
 
-# About BLOCKS Playground
+# BLOCKS Playground
 
-This project is developed to provide a more friendly platform to develop programs for ROLI Lightpad Blocks / Lightpad Ms.
+This project is developed to provide a more friendly platform to develop programs for ROLI Lightpad Block / Lightpad M devices.
 
-This is not an official ROLI application. This web application is developed by third-party developer.
+The webpage also acts as a Lightpad Block Simulator. The simulated pad can receive mouse / touch input events to test / play the Javascript code.
+
+# Disclaimer
+
+Please note that this is not an official ROLI application. This web application is developed by third-party developer.
 
 ### Features:
 
@@ -68,3 +72,7 @@ This is not an official ROLI application. This web application is developed by t
 (Report Problems, Suggestions or your awesome code)
 
 Please provide your feedback here: [https://goo.gl/forms/Bw8nu2fYjmVWb4pe2](https://goo.gl/forms/Bw8nu2fYjmVWb4pe2)
+
+### License
+
+GPL 3.0
