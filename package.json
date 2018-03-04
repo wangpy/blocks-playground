@@ -2,6 +2,8 @@
   "name": "blocks-playground",
   "version": "0.1.0",
   "private": true,
+  "author": "Brian Ping-Yao Wang <wangpy.tw@gmail.com>",
+  "license": "GPL-3.0",
   "homepage": "http://wangpy.github.io/blocks-playground",
   "dependencies": {
     "@babel/standalone": "^7.0.0-beta.40",
