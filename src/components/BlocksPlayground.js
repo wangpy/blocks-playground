@@ -212,6 +212,8 @@ export class BlocksPlayground extends React.Component<Props, State> {
     this.checkAndDeployCustomCode(newCode);
     this._localStorage.setItem(kLocalStorageKeyForBlocksCodeInEditor, newCode);
     console.debug('code saved to local storage', newCode);
+    // clear URL bar query parameter so reloading won't load query code again.
+    window.history.pushState(null, null, '?');
   };
 
   handleCodeExecutionError = (e: *) => {
