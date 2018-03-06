@@ -1,7 +1,6 @@
 // @flow
 
 import * as React from 'react';
-import { assert } from '../base/assert';
 import {
   buildBlockSysExDataArrayFromDump,
   blockProgramPacketDump1,
@@ -71,11 +70,12 @@ type State = {
 };
 
 export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
-  _ackCallback: ?Function;
   _deviceIsReady: boolean;
-  _heartbeatIntervalID: ?IntervalID;
+  _pingIntervalID: ?IntervalID;
   _packetCounter: number;
   _ackedPacketCounter: number;
+  _promiseResolverForAck: ?Function;
+  _promiseRejecterForAck: ?Function;
   _isOpened: boolean;
   _isErrorReported: boolean;
   _customCode: string;
@@ -83,11 +83,12 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
 
   constructor(props: BlocksDeviceProps) {
     super(props);
-    this._ackCallback = null;
     this._deviceIsReady = false;
-    this._heartbeatIntervalID = null;
+    this._pingIntervalID = null;
     this._packetCounter = 0;
     this._ackedPacketCounter = 0;
+    this._promiseResolverForAck = null;
+    this._promiseRejecterForAck = null;
     this._isOpened = false;
     this._isErrorReported = false;
     this._customCode = '';
@@ -107,16 +108,16 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
 
     this.onDeviceWillClose();
 
-    if (this._heartbeatIntervalID != null) {
-      clearInterval(this._heartbeatIntervalID);
-      this._heartbeatIntervalID = null;
+    if (this._pingIntervalID != null) {
+      clearInterval(this._pingIntervalID);
+      this._pingIntervalID = null;
     }
     this._isOpened = false;
     this._isErrorReported = false;
-    console.debug('closeDevice');
+    console.debug('closeDevice', this.props.deviceIndex, this._isOpened);
     this.setState({ enabled: false });
     this.sendDisableSysEx();
-    this.setAckCallback(null);
+    this.clearPromiseForAck();
   }
 
   openDevice() {
@@ -124,9 +125,9 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
       return;
     }
     this._isOpened = true;
-    console.debug('openDevice');
+    console.debug('openDevice', this.props.deviceIndex, this._isOpened);
     this.setState({ enabled: true });
-    this.sendEnableSysEx();
+    this.doHandshakeWithDevice();
   }
 
   sendSysEx(dataArr: Array<number>, checksumToVerify: ?number) {
@@ -141,29 +142,34 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
     this._packetCounter = (this._packetCounter + 1) & kPacketCounterMaxValue;
   }
 
-  setAckCallback(cb: ?Function, cbName: ?string) {
-    setTimeout(() => {
+  clearPromiseForAck() {
+    if (this._promiseRejecterForAck != null) {
+      this._promiseRejecterForAck();
+    }
+    this._promiseResolverForAck = null;
+    this._promiseRejecterForAck = null;
+  }
+
+  waitForDeviceAck(): Promise {
+    this.clearPromiseForAck();
+    return new Promise((resolve, reject) => {
       if (this.props.deviceIndex === kMockDeviceIndex) {
-        if (cb != null) {
-          cb.apply(this);
-        }
+        resolve();
+      } else {
+        this._promiseResolverForAck = resolve;
+        this._promiseRejecterForAck = reject;
       }
-      this._ackCallback = cb;
-      assert(this._ackCallback != null);
-      if (cbName != null) {
-        console.debug('setAckCallback', cbName);
-      }
-    }, 0);
+    });
   }
 
   checkAndUpdateCustomCode(newCode: string) {
     const customFunctions = this.extractCustomFunctionsFromCode();
     if (customFunctions === null) {
-      console.debug('update code failed', newCode);
+      console.debug('checkAndUpdateCustomCode failed');
       return;
     }
     this._customCode = newCode;
-    console.debug('update code success', newCode);
+    console.debug('checkAndUpdateCustomCode success');
   }
 
   processDataFromDevice(messageData: Uint8Array) {
@@ -182,11 +188,12 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
               break;
             }
             const ackedPacketCounter = message.getField('packetCounter');
-            console.debug('received ack', ackedPacketCounter, (this._ackCallback != null) ? 'hasAckCallback!' : '');
+            console.debug('received ack', ackedPacketCounter, (this._promiseResolverForAck != null) ? 'shouldResolvePromiseForAck!' : '');
             this._ackedPacketCounter = ackedPacketCounter;
-            if (this._ackCallback != null) {
-              setTimeout(this._ackCallback, 100);
-              this._ackCallback = null;
+            if (this._promiseResolverForAck != null) {
+              setTimeout(this._promiseResolverForAck, 100);
+              this._promiseResolverForAck = null;
+              this._promiseRejecterForAck = null;
             }
             bitPosition += processedBits;
             isProcessed = true;
@@ -293,78 +300,46 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
     this.onDeviceTouchEnd(touchIndex, x, y, vz);
   }
 
-  sendEnableSysEx = () => {
+  async doHandshakeWithDevice() {
     const { deviceIndex } = this.props;
     if (deviceIndex === 0) {
       return;
     }
-    console.debug('sendEnableSysEx');
-    this.sendSysEx([0x01, 0x02, 0x00], 0x60);
-    this.sendSysEx([0x01, 0x00, 0x00], 0x5A);
-    this.setAckCallback(this.sendEnableSysExPart2, 'sendEnableSysExPart2');
-  };
+    console.debug('doHandshakeWithDevice sendEnableSysEx', deviceIndex);
+    this.sendSysEx([0x01, 0x02, 0x00], 0x60); // endAPIMode
+    this.sendSysEx([0x01, 0x00, 0x00], 0x5A); // beginAPIMode
+    await this.waitForDeviceAck();
 
-  sendEnableSysExPart2 = () => {
-    if (this.props.deviceIndex === 0) {
-      return;
-    }
-    console.debug('sendEnableSysExPart2');
-    this.sendSysEx([0x01, 0x00, 0x00], 0x5A);
-    this.setAckCallback(this.enableHeartbeat, 'enableHeartbeat');
-  };
+    console.debug('doHandshakeWithDevice sendEnableSysExPart2', deviceIndex);
+    this.sendSysEx([0x01, 0x00, 0x00], 0x5A); // enable API mode again
+    await this.waitForDeviceAck();
 
-  enableHeartbeat = () => {
-    if (this.props.deviceIndex === 0) {
-      return;
+    console.debug('doHandshakeWithDevice enablePing', deviceIndex);
+    if (this._pingIntervalID === null) {
+      this._pingIntervalID = setInterval(this.sendPingSysEx, 500);
     }
-    console.debug('enableHeartbeat');
-    if (this._heartbeatIntervalID === null) {
-      this._heartbeatIntervalID = setInterval(this.sendHeartbeatSysEx, 500);
-    }
-    this.sendSysEx([0x01, 0x03, 0x00], 0x63);
-    this.setAckCallback(this.sendEnableSysExPart4, 'sendEnableSysExPart4');
-  };
+    this.sendSysEx([0x01, 0x03, 0x00], 0x63); // manually send ping
+    await this.waitForDeviceAck();
 
-  sendEnableSysExPart4 = () => {
-    if (this.props.deviceIndex === 0) {
-      return;
-    }
-    console.debug('sendEnableSysExPart4');
-    this.sendSysEx([0x10, 0x02], 0x44);
-    this.setAckCallback(this.sendProgramDataSysEx, 'sendProgramDataSysEx');
-  };
+    console.debug('doHandshakeWithDevice sendEnableSysExPart4', deviceIndex);
+    this.sendSysEx([0x10, 0x02], 0x44); // configMessage midiUseMPE
+    await this.waitForDeviceAck();
 
-  sendProgramDataSysEx = () => {
-    if (this.props.deviceIndex === 0) {
-      return;
-    }
-    console.debug('sendProgramDataSysEx');
-    this.sendSysEx([0x01, 0x03, 0x00], 0x63);
-    setTimeout(this.sendProgramDataSysExPart2, 100);
-  };
+    console.debug('doHandshakeWithDevice sendProgramDataSysEx', deviceIndex);
+    this.sendSysEx([0x01, 0x03, 0x00], 0x63); // manually send ping
+    await this.waitForDeviceAck();
 
-  sendProgramDataSysExPart2 = () => {
-    if (this.props.deviceIndex === 0) {
-      return;
-    }
-    console.debug('sendProgramDataSysExPart2');
+    console.debug('doHandshakeWithDevice sendProgramDataSysExPart2', deviceIndex);
     this.sendSysEx(buildBlockSysExDataArrayFromDump(blockProgramPacketDump1));
     this.sendSysEx(buildBlockSysExDataArrayFromDump(blockProgramPacketDump2));
     this._packetCounter = 3;
-    this.setAckCallback(this.sendEnableSysExPart5, 'sendEnableSysExPart5');
-  };
+    await this.waitForDeviceAck();
 
-  sendEnableSysExPart5 = () => {
-    if (this.props.deviceIndex === 0) {
-      return;
-    }
-    console.debug('sendEnableSysExPart5');
-    this.sendSysEx([0x01, 0x05, 0x00], 0x69);
-    this.setAckCallback(this.handleDeviceIsReady, 'handleDeviceIsReady');
-  };
+    console.debug('doHandshakeWithDevice sendEnableSysExPart5', deviceIndex);
+    this.sendSysEx([0x01, 0x05, 0x00], 0x69); // saveProgramAsDefault
+    await this.waitForDeviceAck();
 
-  handleDeviceIsReady = () => {
-    console.debug('handleDeviceIsReady');
+    console.debug('doHandshakeWithDevice setDeviceReady', deviceIndex);
     this._deviceIsReady = true;
     this.injectCustomCode();
 
@@ -491,7 +466,7 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
   }
 
   injectCustomCode() {
-    console.debug('customCode', this._customCode);
+    console.debug('customCode');
     const customFunctions = this.extractCustomFunctionsFromCode();
     console.debug('customFunctions', customFunctions);
     if (customFunctions === null) {
@@ -500,7 +475,7 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
     this._customFunctions = customFunctions;
   }
 
-  sendHeartbeatSysEx = () => {
+  sendPingSysEx = () => {
     this.sendSysEx([0x01, 0x03, 0x00], 0x63);
   };
 
@@ -512,9 +487,8 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
   };
 
   componentWillReceiveProps(newProps: BlocksDeviceProps) {
-    console.debug('BlocksDevice componentWillReceiveProps')
     if (this.props.code !== newProps.code) {
-      console.debug('update code', newProps.code);
+      console.debug('BlocksDevice componentWillReceiveProps update code', this.props.deviceIndex, this._isOpened);
       const isOpened = this._isOpened;
       if (isOpened) {
         this.closeDevice();
@@ -527,7 +501,7 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
   }
 
   componentDidMount() {
-    console.debug('BlocksDevice componentDidMount', this.props.code)
+    console.debug('BlocksDevice componentDidMount', this.props.deviceIndex, this._isOpened)
     this.checkAndUpdateCustomCode(this.props.code);
     if (this.props.topology.props.enabled) {
       this.openDevice();
@@ -535,6 +509,7 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
   }
 
   componentWillUnmount() {
+    console.debug('BlocksDevice componentWillUnmount', this.props.deviceIndex, this._isOpened)
     this.closeDevice();
   }
 
