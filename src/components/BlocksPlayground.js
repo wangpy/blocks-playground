@@ -20,15 +20,15 @@ import 'bootstrap/dist/css/bootstrap.css';
 import CodeMirror from 'react-codemirror';
 import 'codemirror/lib/codemirror.css';
 
-import * as babelPresetMinify from 'babel-preset-minify';
-import * as Babel from '@babel/standalone';
-
 import './BlocksPlayground.css';
 import { BlocksTopology } from '../blocks-sdk/components/BlocksTopology';
 import { CodeCatalog } from '../data/CodeCatalog';
 import { getLineNumberBaseForCustomCode } from '../blocks-sdk/components/BlocksDevice';
 
 require('codemirror/mode/javascript/javascript');
+
+//import UglifyJS from 'uglifyjs-browser'
+const UglifyJS = require('uglifyjs-browser');
 
 const kAboutPageURL = 'https://docs.google.com/document/d/1bIOu8gZJaiQSvcr8YGO_Q699pDe2GB0X7pYtSTPYhgc/edit?usp=sharing';
 const kFeedbackFormURL = 'https://goo.gl/forms/Bw8nu2fYjmVWb4pe2';
@@ -80,7 +80,17 @@ export class BlocksPlayground extends React.Component<Props, State> {
 
   minifyCode(code: string): ?string {
     try {
-      return Babel.transform(code, { presets: [babelPresetMinify] }).code;
+      let ast = UglifyJS.parse(code)
+      ast.figure_out_scope()
+      const compressor = UglifyJS.Compressor()
+      ast = ast.transform(compressor)
+
+      ast.figure_out_scope()
+      ast.compute_char_frequency()
+      ast.mangle_names()
+
+      const minified = ast.print_to_string()
+      return minified;
     } catch (e) {
       console.debug('checkAndDeployCustomCode', 'minify error', e);
       this.setState({
