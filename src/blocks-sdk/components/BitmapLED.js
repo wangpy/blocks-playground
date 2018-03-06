@@ -4,6 +4,7 @@ import * as React from 'react';
 import { assert } from '../base/assert';
 import { computeDataChangeListMessage } from '../util/DataChangeMessageUtils';
 import { BlocksDevice } from './BlocksDevice';
+import { arrayEquals } from '../util/ArrayUtil';
 import { to2DigitHex } from '../util/BitConversionUtils';
 
 import './BitmapLED.css';
@@ -40,10 +41,6 @@ function toColorElement(argb: Color): ColorElement {
   };
 }
 
-function colorElementToString(ce: ColorElement) {
-  return `Color(${ce.alpha}, ${ce.red}, ${ce.green}, ${ce.blue})`;
-}
-
 function to16bitColor(argb: Color): number {
   const ce = toColorElement(argb);
   const a = ce.alpha / 255;
@@ -77,7 +74,6 @@ export function blendARGB(baseColor: Color, overlaidColor: Color): Color {
     green: Math.round((ce1.green * a1 + ce2.green * a2 * (1 - a1)) / newAlpha),
     blue: Math.round((ce1.blue * a1 + ce2.blue * a2 * (1 - a1)) / newAlpha),
   };
-  console.log('blendARGB', colorElementToString(ce1), colorElementToString(ce2), colorElementToString(rc));
   return makeARGB(rc.alpha, rc.red, rc.green, rc.blue);
 }
 
@@ -151,14 +147,8 @@ export class BitmapLED extends React.Component<Props, State> {
   endUpdateAndGetDataChangeListMessage(): ?Array<number> {
     this.endUpdate();
     this._dataArr = to16bitColorArray(this._colorArr);
-    let hasDiff = false;
-    for (let i = 0; i < this._dataArr.length; i++) {
-      if (this._dataArr[i] !== this._baseDataArr[i]) {
-        hasDiff = true;
-        break;
-      }
-    }
-    if (!hasDiff) {
+
+    if (arrayEquals(this._dataArr, this._baseDataArr)) {
       return null;
     }
 

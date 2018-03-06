@@ -80,7 +80,6 @@ export class Lightpad extends BlocksDevice {
       const isLastDataChangePacketAcked = this.isLastDataChangePacketAcked();
       console.debug('handleRepaint', isLastDataChangePacketAcked);
       bitmapLED.beginUpdate(isLastDataChangePacketAcked);
-      console.profile('updateBitmapData');
 
       try {
         this.getCustomFunction('repaint')();
@@ -92,13 +91,10 @@ export class Lightpad extends BlocksDevice {
         }
       }
 
-      console.profileEnd('updateBitmapData');
       if (isLastDataChangePacketAcked) {
-        console.profile('getDataChangeListMessage');
         const message = bitmapLED.endUpdateAndGetDataChangeListMessage();
-        console.profileEnd('getDataChangeListMessage');
 
-        if (message != null) {
+        if (message != null && message.length > 0) {
           this.sendSysEx(message);
           this.increasePacketCounter();
         }

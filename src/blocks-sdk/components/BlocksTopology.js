@@ -172,7 +172,7 @@ export class BlocksTopology extends React.Component<Props, State> {
 
   componentWillReceiveProps(newProps: Props) {
     if (this.props.code !== newProps.code) {
-      console.debug('BlocksTopology code updated', newProps.code);
+      console.debug('BlocksTopology code updated');
       this.setState({ code: newProps.code });
     }
     if (this.props.enabled !== newProps.enabled) {
@@ -192,7 +192,7 @@ export class BlocksTopology extends React.Component<Props, State> {
           onMIDIStateChange={this.handleMIDIStateChange}
           sysex={true}
           ref={(c) => this._midiDeviceManager = c} />
-        <div class="blocks">
+        <div className="blocks">
           {this.state.deviceTopology.map(info => {
             if (info.deviceType === 'Lightpad') {
               return (
