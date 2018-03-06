@@ -6,13 +6,11 @@
   "license": "GPL-3.0",
   "homepage": "http://wangpy.github.io/blocks-playground",
   "dependencies": {
-    "@babel/standalone": "^7.0.0-beta.40",
-    "@jdcrensh/react-scripts": "^1.1.2-0",
-    "babel-preset-minify": "^0.3.0",
     "bootstrap": "^4.0.0",
     "react": "^16.2.0",
     "react-codemirror": "^1.0.0",
     "react-dom": "^16.2.0",
+    "react-scripts": "^1.1.1",
     "reactstrap": "^5.0.0-beta.2",
     "uglifyjs-browser": "^1.0.0"
   },
@@ -26,7 +24,6 @@
   },
   "devDependencies": {
     "flow-bin": "^0.66.0",
-    "gh-pages": "^1.1.0",
-    "react-scripts-plugin-no-minify": "^0.3.2"
+    "gh-pages": "^1.1.0"
   }
 }
