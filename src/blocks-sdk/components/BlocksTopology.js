@@ -68,6 +68,12 @@ export class BlocksTopology extends React.Component<Props, State> {
     }
   }
 
+  sendMidiDataToSelectedOutputPort(data: Uint8Array) {
+    if (this._midiDeviceManager != null) {
+      this._midiDeviceManager.sendMidiDataToSelectedOutputPort(data);
+    }
+  }
+
   sendSysExToMidiDevice(midiDevice: MIDIDevice, data: Uint8Array) {
     if (midiDevice.outputPort != null) {
       midiDevice.outputPort.send(data);

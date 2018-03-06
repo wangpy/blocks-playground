@@ -2,11 +2,13 @@
 
 import { kSampleCodeEmptyTemplate } from './samples/EmptyTemplate';
 import { kSampleCodeTestDrawingAPI } from './samples/TestDrawingAPI';
+import { kSampleCodeTestMIDIEvents } from './samples/TestMIDIEvents';
 import { kSampleCodeSnakeGame } from './samples/SnakeGame';
 
 const kSampleCodes: { [string]: string } = {
   EmptyTemplate: kSampleCodeEmptyTemplate,
   TestDrawingAPI: kSampleCodeTestDrawingAPI,
+  TestMIDIEvents: kSampleCodeTestMIDIEvents,
   SnakeGame: kSampleCodeSnakeGame,
 };
 

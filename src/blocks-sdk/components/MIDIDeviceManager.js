@@ -1,6 +1,19 @@
 // @flow
 
 import * as React from 'react';
+import {
+  Dropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem
+} from 'reactstrap';
+
+import './MIDIDeviceManager.css';
+
+export type MIDIDevice = {
+  inputPort: *,
+  outputPort: *,
+};
 
 type Props = {
   onMIDIFailure(error: any): void,
@@ -10,12 +23,14 @@ type Props = {
   sysex: boolean,
 };
 
-export type MIDIDevice = {
-  inputPort: *,
-  outputPort: *,
+type State = {
+  isInputDropdownOpen: boolean,
+  isOutputDropdownOpen: boolean,
+  selectedInputPort: *,
+  selectedOutputPort: *,
 };
 
-export class MIDIDeviceManager extends React.Component<Props> {
+export class MIDIDeviceManager extends React.Component<Props, State> {
   _midi: any;
   _devices: { [string]: MIDIDevice };
 
@@ -23,23 +38,38 @@ export class MIDIDeviceManager extends React.Component<Props> {
     super(props);
     this._midi = null;
     this._devices = {};
+    this.state = {
+      isInputDropdownOpen: false,
+      isOutputDropdownOpen: false,
+      selectedInputPort: null,
+      selectedOutputPort: null,
+    }
     this.requestMidiAccess();
   }
 
   handleMIDISuccess = (midiAccess: any) => {
     console.debug("onMIDISuccess", midiAccess);
+    midiAccess.onstatechange = this.handleMIDIStateChange;
+    for (const port of midiAccess.inputs.values()) {
+      if (this.isBlocksDevice(port)) {
+        port.open();
+      }
+    }
+    for (const port of midiAccess.outputs.values()) {
+      if (this.isBlocksDevice(port)) {
+        port.open();
+      }
+    }
     this._midi = midiAccess;
-    this._midi.onstatechange = this.handleMIDIStateChange;
-    this._midi.inputs.forEach(port => this.isBlocksDevice(port) ? port.open() : null);
-    this._midi.outputs.forEach(port => this.isBlocksDevice(port) ? port.open() : null);
 
     this.props.onMIDISuccess();
+
+    this.forceUpdate();
   };
 
   isBlocksDevice(port: *): boolean {
     console.debug('isBlockDevice', port.name, port);
-    return (port.name === 'Lightpad BLOCK '
-      || port.name === 'ROLI Lightpad BLOCK ') ? true : false;
+    return (port.name.indexOf('Lightpad BLOCK ') >= 0) ? true : false;
   }
 
   addPortToDeviceMap(port: *) {
@@ -64,6 +94,22 @@ export class MIDIDeviceManager extends React.Component<Props> {
     return null;
   }
 
+  requestMidiAccess() {
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess({
+        sysex: this.props.sysex
+      }).then(this.handleMIDISuccess.bind(this), this.handleMIDIFailure.bind(this));
+    } else {
+      alert("No MIDI support in your browser.");
+    }
+  }
+
+  sendMidiDataToSelectedOutputPort(data: Uint8Array) {
+    if (this.state.selectedOutputPort != null) {
+      this.state.selectedOutputPort.send(data);
+    }
+  }
+
   handleMIDIStateChange = (event: *) => {
     console.debug('midiAccess onstatechange', event);
 
@@ -79,6 +125,8 @@ export class MIDIDeviceManager extends React.Component<Props> {
       }
     }
     this.props.onMIDIStateChange(event);
+
+    this.forceUpdate();
   };
 
   handleMIDIFailure = (error: any) => {
@@ -87,19 +135,79 @@ export class MIDIDeviceManager extends React.Component<Props> {
     this.props.onMIDIFailure(error);
   };
 
-  requestMidiAccess() {
-    if (navigator.requestMIDIAccess) {
-      navigator.requestMIDIAccess({
-        sysex: this.props.sysex
-      }).then(this.handleMIDISuccess.bind(this), this.handleMIDIFailure.bind(this));
-    } else {
-      alert("No MIDI support in your browser.");
+  handleToggleInputPortDropdown = () => {
+    this.setState({ isInputDropdownOpen: !this.state.isInputDropdownOpen });
+  };
+
+  handleToggleOutputPortDropdown = () => {
+    this.setState({ isOutputDropdownOpen: !this.state.isOutputDropdownOpen });
+  };
+
+  handlePortSelected = (port: *, portType: string) => {
+    if (portType === 'input') {
+      this.setState({ selectedInputPort: port });
+    } else { // (portType === 'output')
+      this.setState({ selectedOutputPort: port });
     }
-  }
+  };
+
+  renderDropdownMenuForPorts(ports: *, portType: string) {
+    console.debug('renderDropdownMenuForPorts', ports, portType);
+    const items = [];
+    for (const port of ports.values()) {
+      if (!this.isBlocksDevice(port)) {
+        const isSelected = (this.state.selectedInputPort === port
+          || this.state.selectedOutputPort === port);
+        items.push(
+          <DropdownItem
+            className={isSelected ? 'selected-port' : ''}
+            onClick={this.handlePortSelected.bind(this, port, portType)}>
+            {port.name}
+          </DropdownItem>
+        );
+      }
+    }
+    const isOffSelected = ((portType === 'input' && this.state.selectedInputPort == null)
+      || (portType === 'output' && this.state.selectedOutputPort == null))
+    return (
+      <DropdownMenu>
+        {items}
+        <DropdownItem divider />
+        <DropdownItem
+          className={isOffSelected ? 'selected-port' : ''}
+          onClick={this.handlePortSelected.bind(this, null, portType)}>
+          Off
+        </DropdownItem>
+      </DropdownMenu>
+    )
+  };
 
   render() {
+    if (this._midi == null) {
+      return (<div className="midi-device-manager"></div>);
+    }
+    const midi = this._midi;
     return (
-      <div></div>
+      <div className="midi-device-manager">
+        <Dropdown
+          className="ports-dropdown"
+          isOpen={this.state.isInputDropdownOpen}
+          toggle={this.handleToggleInputPortDropdown}>
+          <DropdownToggle caret>
+            MIDI Input: {this.state.selectedInputPort != null ? this.state.selectedInputPort.name : 'Off'}
+          </DropdownToggle>
+          {this.renderDropdownMenuForPorts(midi.inputs, 'input')}
+        </Dropdown>
+        <Dropdown
+          className="ports-dropdown"
+          isOpen={this.state.isOutputDropdownOpen}
+          toggle={this.handleToggleOutputPortDropdown}>
+          <DropdownToggle caret>
+            MIDI Output: {this.state.selectedOutputPort != null ? this.state.selectedOutputPort.name : 'Off'}
+          </DropdownToggle>
+          {this.renderDropdownMenuForPorts(midi.outputs, 'output')}
+        </Dropdown>
+      </div>
     );
   }
 }

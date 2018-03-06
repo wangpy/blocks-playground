@@ -41,6 +41,14 @@ const kCodeToExecute = `(function(env){
   var drawPressureMap = env.drawPressureMap;
   var fadePressureMap = env.fadePressureMap;
   var clearDisplay = env.clearDisplay;
+  var sendMIDI = env.sendMIDI;
+  var sendNoteOn = env.sendNoteOn;
+  var sendNoteOff = env.sendNoteOff;
+  var sendAftertouch = env.sendAftertouch;
+  var sendCC = env.sendCC;
+  var sendPC = env.sendPC;
+  var sendPitchBend = env.sendPitchBend;
+  var sendChannelPressure = env.sendChannelPressure;
   
   {{CUSTOM_CODE}}
 
@@ -440,6 +448,47 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
       bitmapLED.clearDisplay(rgb);
     }
   };
+
+  sendMIDI = (byte0: number, byte1: ?number, byte2: ?number) => {
+    let dataArr = [byte0 & 0xFF];
+    if (byte1 != null) {
+      dataArr.push(byte1 & 0x7F);
+    }
+    if (byte2 != null) {
+      dataArr.push(byte2 & 0x7F);
+    }
+    this.props.topology.sendMidiDataToSelectedOutputPort(new Uint8Array(dataArr));
+  }
+
+  sendNoteOn = (channel: number, noteNumber: number, velocity: number) => {
+    this.sendMIDI(0x90 | (channel & 0x0F), noteNumber, velocity);
+  }
+
+  sendNoteOff = (channel: number, noteNumber: number, velocity: number) => {
+    this.sendMIDI(0x80 | (channel & 0x0F), noteNumber, velocity);
+  }
+
+  sendAftertouch = (channel: number, noteNumber: number, level: number) => {
+    this.sendMIDI(0xA0 | (channel & 0x0F), noteNumber, level);
+  }
+
+  sendCC = (channel: number, controller: number, value: number) => {
+    this.sendMIDI(0xB0 | (channel & 0x0F), controller, value);
+  }
+
+  sendPC = (channel: number, program: number) => {
+    this.sendMIDI(0xC0 | (channel & 0x0F), program);
+  }
+
+  sendPitchBend = (channel: number, position: number) => {
+    const lsb = position & 0x7F;
+    const msb = (position >> 7) & 0x7F;
+    this.sendMIDI(0xE0 | (channel & 0x0F), lsb, msb);
+  }
+
+  sendChannelPressure = (channel: number, pressure: number) => {
+    this.sendMIDI(0xD0 | (channel & 0x0F), pressure);
+  }
 
   ///////////////
   // api end
