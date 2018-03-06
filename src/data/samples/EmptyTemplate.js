@@ -27,6 +27,10 @@ function repaint() {
 }
 
 // Touch event callbacks
+// touchIndex: number, first touch = 1
+// x: number 0-4095
+// y: number 0-4095
+// vz: number 0-255
 
 function touchStart(touchIndex, x, y, vz) {
   addPressurePoint(pressurePointColor, x, y, vz);
