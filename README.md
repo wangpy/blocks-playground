@@ -12,61 +12,76 @@ Please note that this is not an official ROLI application. This web application 
 ### Features:
 
 - Write code in Javascript
-    
+
 - Live preview (same with BLOCKS Code)
-    
+
 - Simulated Device Support: Show Bitmap LED & Perform touch events on web UI)
-    
+
 - Sample Code Catalog (and you can submit your awesome code to us if you like!)
-    
 
 ### Known issues:
 
 - Only 1 Lightpad device is supported.
-    
+
 - Unable to switch back to Simulated Lightpad after disconnecting real device.
-    
+
 - Sometimes error message is displayed but code executes successfully.
-    
+
 
 ### Supported APIs:
 
 (More API support coming soon)
 
 - makeARGB(a, r, g, b)
-    
+
 - blendARGB(baseColor, overlaidColor)
-    
+
 - fillPixel(rgb, x, y)
-    
+
 - blendPixel(argb, x, y)
-    
+
 - fillRect(rgb, x, y, width, height)
-    
+
 - blendRect(argb, x, y, width, height)
-    
+
 - blendGradientRect(colorNW, colorNE, colorSW, colorSE, x, y, width, height)
-    
+
 - addPressurePoint(argb, touchX, touchY, touchZ)
-    
+
 - drawPressureMap()
-    
+
 - fadePressureMap()
+
+- sendMIDI(byte0[, byte1[, byte2]])
+
+- sendNoteOn(channel, noteNumber, velocity)
+
+- sendNoteOff(channel, noteNumber, velocity)
+
+- sendAftertouch(channel, noteNumber, level)
+
+- sendCC(channel, controller, value)
+
+- sendPC(channel, program)
+
+- sendPitchBend(channel, position)
+
+- sendChannelPressure(channel, pressure)
 
 ### Supported Callback Functions:
 
 (More API support coming soon)
 
 - initialise()
-    
+
 - repaint()
-    
+
 - touchStart(touchIndex, x, y, vz)
-    
+
 - touchMove(touchIndex, x, y, vz)
-    
+
 - touchEnd(touchIndex, x, y, vz)
-    
+
 ### For Feedback
 
 (Report Problems, Suggestions or your awesome code)
