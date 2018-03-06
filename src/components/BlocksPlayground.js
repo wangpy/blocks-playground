@@ -13,7 +13,12 @@ import {
   UncontrolledDropdown,
   DropdownToggle,
   DropdownMenu,
-  DropdownItem
+  DropdownItem,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Tooltip
 } from 'reactstrap';
 import 'bootstrap/dist/css/bootstrap.css';
 
@@ -25,11 +30,20 @@ import { BlocksTopology } from '../blocks-sdk/components/BlocksTopology';
 import { CodeCatalog } from '../data/CodeCatalog';
 import { getLineNumberBaseForCustomCode } from '../blocks-sdk/components/BlocksDevice';
 
+import { Base64 } from 'js-base64';
+import * as Clipboard from 'clipboard';
+
+import clippyIcon from '../images/clippy.svg';
+
 require('codemirror/mode/javascript/javascript');
 
 //import UglifyJS from 'uglifyjs-browser'
 const UglifyJS = require('uglifyjs-browser');
+const Pako = require('pako');
+const UrlParse = require('url-parse');
+const GoogleURL = require('google-url');
 
+const kGoogleUrlKey = 'AIzaSyCSGiSTfDdc01Tn9Tk83vQ00f6Ag2sCIMI';
 const kAboutPageURL = 'https://docs.google.com/document/d/1bIOu8gZJaiQSvcr8YGO_Q699pDe2GB0X7pYtSTPYhgc/edit?usp=sharing';
 const kFeedbackFormURL = 'https://goo.gl/forms/Bw8nu2fYjmVWb4pe2';
 
@@ -45,18 +59,24 @@ type State = {
   enabled: boolean,
   isNavbarItemsOpen: boolean,
   isSavedToDraft: boolean,
+  isShareDialogOpened: boolean,
+  isSharing: boolean,
+  isUrlCopied: boolean,
   lastCodeUpdateTime: ?Date,
+  urlToShare: string,
   codeError: *,
   executionError: *,
 }
 
 export class BlocksPlayground extends React.Component<Props, State> {
+  _clipboard: *;
   _codeCatalog: CodeCatalog;
   _codeMirror: *;
   _localStorage: *;
 
   constructor(props: Props) {
     super(props);
+    this._clipboard = null;
     this._codeCatalog = new CodeCatalog();
     this._codeMirror = null;
     this._localStorage = window.localStorage;
@@ -66,16 +86,36 @@ export class BlocksPlayground extends React.Component<Props, State> {
       enabled: true,
       isNavbarItemsOpen: false,
       isSavedToDraft: false,
+      isShareDialogOpened: false,
+      isSharing: false,
+      isUrlCopied: false,
       lastCodeUpdateTime: null,
+      urlToShare: null,
       codeError: null,
       executionError: null
     };
   }
 
   getDefaultCode() {
+    const parsedUrl = UrlParse(window.location.href, true);
+    if (parsedUrl.query.code != null) {
+      return this.getExtractedCode(parsedUrl.query.code);
+    }
     const localCode = this._localStorage.getItem(kLocalStorageKeyForBlocksCodeInEditor);
-    const template = this._codeCatalog.getEmptyTemplate();
-    return localCode != null ? localCode : template;
+    if (localCode != null) {
+      return localCode;
+    }
+    return this._codeCatalog.getEmptyTemplate();
+  }
+
+  getCompressedCode(code: string): string {
+    const binaryString = Pako.deflate(code, { to: 'string' });
+    return Base64.encode(binaryString);
+  }
+
+  getExtractedCode(base64code: string): string {
+    const binaryString = Base64.decode(base64code);
+    return Pako.inflate(binaryString, { to: 'string' });
   }
 
   minifyCode(code: string): ?string {
@@ -115,6 +155,9 @@ export class BlocksPlayground extends React.Component<Props, State> {
         code: newCode + ' ',
         minifiedCode: minifiedCode,
         isSavedToDraft: false,
+        isShareDialogOpened: false,
+        isSharing: false,
+        urlToShare: null,
         lastCodeUpdateTime: new Date(),
         codeError: null,
         executionError: null,
@@ -198,8 +241,46 @@ export class BlocksPlayground extends React.Component<Props, State> {
     });
   };
 
+  handleShareButtonClick = () => {
+    if (this.state.urlToShare != null) {
+      this.setState({ isShareDialogOpened: true });
+      return;
+    }
+
+    const base64Code = this.getCompressedCode(this.state.code);
+    const parsedUrl = UrlParse(window.location.href);
+    parsedUrl.set('query', { code: base64Code });
+    const urlToShare = parsedUrl.toString();
+
+    this.setState({ isSharing: true });
+
+    const googleUrl = new GoogleURL({ key: kGoogleUrlKey });
+    googleUrl.shorten(urlToShare, (err, shortUrl) => {
+      if (err) {
+        console.error('Shorten URL error', err, urlToShare);
+        shortUrl = urlToShare;
+      }
+      this.setState({
+        isShareDialogOpened: true,
+        isSharing: false,
+        urlToShare: shortUrl
+      });
+    });
+  };
+
+  handleToggleShareModalDialog = () => {
+    this.setState({
+      isShareDialogOpened: false,
+      isUrlCopied: false,
+    });
+  }
+
   componentDidMount() {
     this.checkAndDeployCustomCode(this.getDefaultCode());
+    this._clipboard = new Clipboard("#share-btn");
+    this._clipboard.on('success', () => {
+      this.setState({ isUrlCopied: true });
+    });
   }
 
   renderCustomCodeDeployStatus() {
@@ -283,6 +364,70 @@ export class BlocksPlayground extends React.Component<Props, State> {
 
   }
 
+  renderCodeDeployStatusBar() {
+    const enabled = this.state.enabled;
+    return (
+      <div className="blocks-playground-code-deploy-status">
+        <Button
+          color={enabled ? 'success' : 'warning'}
+          size="sm"
+          onClick={this.handleToggleButtonClick}>
+          Status: {enabled ? 'Enabled' : 'Disabled'}
+        </Button>
+        {this.renderCustomCodeDeployStatus()}
+        {(this.state.lastCodeUpdateTime != null) ? (
+          <span>
+            <Button
+              color={this.state.isSavedToDraft ? 'secondary' : 'info'}
+              outline={this.state.isSavedToDraft}
+              size="sm"
+              onClick={this.handleSaveDraftButtonClick}>
+              {(!this.state.isSavedToDraft) ? 'Save to Draft' : 'Saved to draft'}
+            </Button>
+            <Button
+              color={this.state.isSharing ? 'secondary' : 'light'}
+              outline={this.state.isSharing}
+              size="sm"
+              onClick={this.handleShareButtonClick}>
+              {(!this.state.isSharing) ? 'Share Your Code!' : 'Generating Link...'}
+            </Button>
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+
+  renderShareModalDialog() {
+    return (
+      <Modal
+        isOpen={this.state.isShareDialogOpened}
+        toggle={this.handleToggleShareModalDialog}
+        className="share-modal-dialog">
+        <ModalHeader toggle={this.handleToggleShareModalDialog}>Share Your Code</ModalHeader>
+        <ModalBody>
+          <div>
+            Share Link:
+            <input id="share-url" value={this.state.urlToShare} />
+            <button id="share-btn" data-clipboard-text={this.state.urlToShare}>
+              <img src={clippyIcon} alt="Copy to Clipboard" />
+            </button>
+            <Tooltip
+              placement="bottom"
+              isOpen={this.state.isUrlCopied} target="share-btn"
+              toggle={() => this.setState({ isUrlCopied: false })}>
+              Copied!
+            </Tooltip>
+          </div>
+          <div style={{ marginTop: 5 }}>
+            <a href={kFeedbackFormURL} target="_blank">You can also submit your code to our Code Catalog!</a>
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="secondary" onClick={this.handleToggleShareModalDialog}>Close</Button>
+        </ModalFooter>
+      </Modal >
+    );
+  }
   render() {
     const enabled = this.state.enabled;
     const codeMirrorOptions = {
@@ -308,27 +453,11 @@ export class BlocksPlayground extends React.Component<Props, State> {
               onChange={this.handleCodeChange}
               options={codeMirrorOptions}
               ref={(c) => this._codeMirror = c} />
-            <div className="blocks-playground-code-deploy-status">
-              <Button
-                color={enabled ? 'success' : 'warning'}
-                size="sm"
-                onClick={this.handleToggleButtonClick}>
-                Status: {enabled ? 'Enabled' : 'Disabled'}
-              </Button>
-              {this.renderCustomCodeDeployStatus()}
-              {(this.state.lastCodeUpdateTime != null) ? (
-                <Button
-                  color={this.state.isSavedToDraft ? 'secondary' : 'info'}
-                  outline={this.state.isSavedToDraft}
-                  size="sm"
-                  onClick={this.handleSaveDraftButtonClick}>
-                  {(!this.state.isSavedToDraft) ? 'Save to Draft' : 'Saved to draft'}
-                </Button>
-              ) : null}
-            </div>
+            {this.renderCodeDeployStatusBar()}
           </div>
         </div>
-      </div>
+        {this.renderShareModalDialog()}
+      </div >
     );
   }
 }

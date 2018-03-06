@@ -65,6 +65,29 @@
   color: red;
 }
 
+#share-url {
+  margin-left: 5px;
+  height: 30px;
+  border: 1px solid #999;
+  border-top-left-radius: 3px;
+  border-bottom-left-radius: 3px;
+}
+
+#share-btn {
+  height: 30px;
+  margin-left: -1px;
+  margin-top: 2px;
+  border: 1px solid #999;
+  border-top-right-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
+#share-btn img {
+  margin-top: -2px;
+  width: 18px;
+  height: 18px;
+}
+
 /* for reactstrap */
 
 .navbar-dark {

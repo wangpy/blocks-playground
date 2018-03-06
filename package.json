@@ -7,12 +7,17 @@
   "homepage": "http://wangpy.github.io/blocks-playground",
   "dependencies": {
     "bootstrap": "^4.0.0",
+    "clipboard": "^2.0.0",
+    "google-url": "^0.0.4",
+    "js-base64": "^2.4.3",
+    "pako": "^1.0.6",
     "react": "^16.2.0",
     "react-codemirror": "^1.0.0",
     "react-dom": "^16.2.0",
     "react-scripts": "^1.1.1",
     "reactstrap": "^5.0.0-beta.2",
-    "uglifyjs-browser": "^1.0.0"
+    "uglifyjs-browser": "^1.0.0",
+    "url-parse": "^1.2.0"
   },
   "scripts": {
     "start": "react-scripts start",
