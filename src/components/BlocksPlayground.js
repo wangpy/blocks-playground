@@ -287,7 +287,7 @@ export class BlocksPlayground extends React.Component<Props, State> {
     const { lastCodeUpdateTime, codeError, executionError } = this.state;
     if (codeError != null) {
       return (
-        <span className="error">
+        <span className="code-deploy-status error">
           <b>Error in code:</b> {codeError.toString()}
         </span>
       );
@@ -300,15 +300,15 @@ export class BlocksPlayground extends React.Component<Props, State> {
       errPosArr[1] = parseInt(errPosArr[1], 10);
       const errPos = errPosArr.join(':');
       return (
-        <span className="error">
+        <span className="code-deploy-status error">
           <b>Error in execution:</b> {executionError.toString()} ({errPos})
         </span>
       );
     } else if (lastCodeUpdateTime) {
       return (
-        <span>
+        <span className="code-deploy-status" >
           Last code update: {lastCodeUpdateTime.toString()}
-        </span>
+        </span >
       );
     }
     return (<span></span>);
@@ -428,6 +428,7 @@ export class BlocksPlayground extends React.Component<Props, State> {
       </Modal >
     );
   }
+
   render() {
     const enabled = this.state.enabled;
     const codeMirrorOptions = {
