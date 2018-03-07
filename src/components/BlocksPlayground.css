@@ -55,15 +55,21 @@
   height: 30px;
   background-color: black;
   color: white;
+  display: flex;
+  flex-direction: row;
 }
 
-.blocks-playground-code-deploy-status span.code-deploy-status,
+.blocks-playground-code-deploy-status .code-deploy-status,
 .blocks-playground-code-deploy-status button {
   padding: 3px 6px;
   margin-left: 5px;
 }
 
-.blocks-playground-code-deploy-status span.code-deploy-status.error {
+.blocks-playground-code-deploy-status span.code-deploy-status {
+  flex: 1;
+}
+
+.blocks-playground-code-deploy-status span.code-deploy-status-text.error {
   color: red;
 }
 

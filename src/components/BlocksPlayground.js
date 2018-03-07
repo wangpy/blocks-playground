@@ -18,7 +18,8 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
-  Tooltip
+  Tooltip,
+  UncontrolledTooltip,
 } from 'reactstrap';
 import 'bootstrap/dist/css/bootstrap.css';
 
@@ -287,9 +288,10 @@ export class BlocksPlayground extends React.Component<Props, State> {
 
   renderCustomCodeDeployStatus() {
     const { lastCodeUpdateTime, codeError, executionError } = this.state;
+    let content = (<span className="code-deploy-status-text" id="code-deploy-status-text"></span>);
     if (codeError != null) {
-      return (
-        <span className="code-deploy-status error">
+      content = (
+        <span className="code-deploy-status-text error" id="code-deploy-status-text">
           <b>Error in code:</b> {codeError.toString()}
         </span>
       );
@@ -301,19 +303,26 @@ export class BlocksPlayground extends React.Component<Props, State> {
       errPosArr[0] -= getLineNumberBaseForCustomCode();
       errPosArr[1] = parseInt(errPosArr[1], 10);
       const errPos = errPosArr.join(':');
-      return (
-        <span className="code-deploy-status error">
+      content = (
+        <span className="code-deploy-status-text error" id="code-deploy-status-text">
           <b>Error in execution:</b> {executionError.toString()} ({errPos})
         </span>
       );
     } else if (lastCodeUpdateTime) {
-      return (
-        <span className="code-deploy-status" >
+      content = (
+        <span className="code-deploy-status-text" id="code-deploy-status-text">
           Last code update: {lastCodeUpdateTime.toString()}
         </span >
       );
     }
-    return (<span></span>);
+    return (
+      <span className="code-deploy-status">
+        {content}
+        <UncontrolledTooltip placement="top" target="#code-deploy-status-text">
+          {content}
+        </UncontrolledTooltip>
+      </span>
+    );
   }
 
   renderCodeSamplesAsDropdownItems() {
@@ -377,24 +386,24 @@ export class BlocksPlayground extends React.Component<Props, State> {
           Status: {enabled ? 'Enabled' : 'Disabled'}
         </Button>
         {this.renderCustomCodeDeployStatus()}
-        {(this.state.lastCodeUpdateTime != null) ? (
-          <span>
-            <Button
-              color={this.state.isSavedToDraft ? 'secondary' : 'info'}
-              outline={this.state.isSavedToDraft}
-              size="sm"
-              onClick={this.handleSaveDraftButtonClick}>
-              {(!this.state.isSavedToDraft) ? 'Save to Draft' : 'Saved to draft'}
-            </Button>
-            <Button
-              color={this.state.isSharing ? 'secondary' : 'light'}
-              outline={this.state.isSharing}
-              size="sm"
-              onClick={this.handleShareButtonClick}>
-              {(!this.state.isSharing) ? 'Share Your Code!' : 'Generating Link...'}
-            </Button>
-          </span>
-        ) : null}
+        {this.state.lastCodeUpdateTime != null && (
+          <Button
+            color={this.state.isSavedToDraft ? 'secondary' : 'info'}
+            outline={this.state.isSavedToDraft}
+            size="sm"
+            onClick={this.handleSaveDraftButtonClick}>
+            {(!this.state.isSavedToDraft) ? 'Save to Draft' : 'Saved to draft'}
+          </Button>
+        )}
+        {this.state.lastCodeUpdateTime != null && (
+          <Button
+            color={this.state.isSharing ? 'secondary' : 'light'}
+            outline={this.state.isSharing}
+            size="sm"
+            onClick={this.handleShareButtonClick}>
+            {(!this.state.isSharing) ? 'Share Your Code!' : 'Generating Link...'}
+          </Button>
+        )}
       </div>
     );
   }
