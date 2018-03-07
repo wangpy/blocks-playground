@@ -68,6 +68,8 @@ Please note that this is not an official ROLI application. This web application 
 
 - sendChannelPressure(channel, pressure)
 
+Check out the details of these functions at [official ROLI Littlefoot documenation](https://docs.google.com/document/d/1hOoDw-N50Qhsd_UuBrjvns9nIDMph2tG9ToD93ezXlo/edit).
+
 ### Supported Callback Functions:
 
 (More API support coming soon)
