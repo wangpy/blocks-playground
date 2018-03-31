@@ -27,7 +27,7 @@ type CustomFunctions = {
   touchEnd: ?Function
 };
 
-export const kMockDeviceIndex = 0x3F;
+export const kMockDeviceIndex = 0x3E;
 
 const kCodeToExecute = `(function(env){
   var makeARGB = env.makeARGB;
@@ -196,7 +196,7 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
               break;
             }
             const ackedPacketCounter = message.getField('packetCounter');
-            console.debug('received ack', ackedPacketCounter, (this._promiseResolverForAck != null) ? 'shouldResolvePromiseForAck!' : '');
+            console.debug('received ack', this.props.deviceIndex, ackedPacketCounter, (this._promiseResolverForAck != null) ? 'shouldResolvePromiseForAck!' : '');
             this._ackedPacketCounter = ackedPacketCounter;
             if (this._promiseResolverForAck != null) {
               setTimeout(this._promiseResolverForAck, 100);

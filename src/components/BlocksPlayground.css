@@ -24,8 +24,8 @@
 @media (min-width: 768px) {
   .blocks-playground-topology-area {
     width: 400px;
+    overflow-y: scroll;
   }
-
   .blocks-playground-main-area {
     flex: 1;
     display: flex;

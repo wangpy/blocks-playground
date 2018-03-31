@@ -2,12 +2,15 @@
 
 import * as React from 'react';
 import { MIDIDeviceManager, type MIDIDevice } from './MIDIDeviceManager';
-import {
-  buildBlockSysExData,
-} from '../blocks/Block';
+import { assert } from '../base/assert';
+import { buildBlockSysExData } from '../blocks/Block';
 import { BlocksDevice, kMockDeviceIndex } from './BlocksDevice';
 import { Lightpad } from './Lightpad';
-import { getBlocksMessageType, kMessageStartBitInDataFromDevice } from '../protocol/BlocksProtocolDefinitions';
+import {
+  getBlocksMessageType,
+  kMessageStartBitInDataFromDevice,
+  DeviceTopologyMessage
+} from '../protocol/BlocksProtocolDefinitions';
 
 type Props = {
   code: string,
@@ -28,6 +31,7 @@ type State = {
 
 export class BlocksTopology extends React.Component<Props, State> {
   _data: Uint8Array;
+  _deviceTopology: ?Object;
   _devices: { [*]: BlocksDevice };
   _midiDeviceManager: ?MIDIDeviceManager;
 
@@ -35,6 +39,7 @@ export class BlocksTopology extends React.Component<Props, State> {
     super(props);
     this._data = new Uint8Array(0);
     this._midiDeviceManager = null;
+    this._deviceTopology = null;
     this._devices = {};
     this.state = {
       code: '',
@@ -101,17 +106,27 @@ export class BlocksTopology extends React.Component<Props, State> {
       const messageType = getBlocksMessageType(messageData, kMessageStartBitInDataFromDevice);
 
       if (messageType === 0x01) {
-        // TODO: add deviceIndex to device list - create 1 lightpad device directly here
-        // TODO: parse device topology message - assuming only 1 Lightpad block here
+        const message = new DeviceTopologyMessage();
+        const processedBits = message.deserializeFromData(messageData, kMessageStartBitInDataFromDevice);
+        assert(processedBits > 0);
+        this._deviceTopology = message.toObject();
+        console.debug('DeviceTopology', deviceIndex, this._deviceTopology);
+
         if (this._midiDeviceManager != null) {
           let midiDevice = this._midiDeviceManager.getMIDIDevice('Lightpad BLOCK ');
           if (midiDevice === null && this._midiDeviceManager != null) {
             // try another device name
             midiDevice = this._midiDeviceManager.getMIDIDevice('ROLI Lightpad BLOCK ');
           }
-          if (midiDevice != null) {
+          if (midiDevice != null && this._deviceTopology != null) {
             this.setState({
-              deviceTopology: [{ deviceIndex: deviceIndex, deviceType: 'Lightpad', midiDevice }]
+              deviceTopology: this._deviceTopology.devices.map(device => {
+                return {
+                  deviceIndex: device.topologyIndex,
+                  deviceType: 'Lightpad', // TODO: device deviceType from device.blockSerialNumber
+                  midiDevice
+                };
+              })
             });
           }
         }
@@ -187,7 +202,6 @@ export class BlocksTopology extends React.Component<Props, State> {
   }
 
   render() {
-    this._devices = {};
     const topology = this;
     return (
       <div>

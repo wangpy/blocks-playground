@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { BitmapLED } from './BitmapLED';
-import { BlocksDevice, type BlocksDeviceProps } from './BlocksDevice';
+import { kMockDeviceIndex, BlocksDevice, type BlocksDeviceProps } from './BlocksDevice';
 
 import './Lightpad.css';
 
@@ -257,7 +257,11 @@ export class Lightpad extends BlocksDevice {
         ref={(c) => this._bitmapLED = c}
       />
       {this.renderActiveTouches()}
-      <div className="device-name">{this.props.deviceIndex === 0x3F ? 'Simulated Lightpad' : 'Lightpad Device'}</div>
+      <div className="device-name">{
+        this.props.deviceIndex === kMockDeviceIndex
+          ? 'Simulated Lightpad'
+          : `Lightpad Device 0x${this.props.deviceIndex.toString(16)}`
+      }</div>
     </div>
   )
 }

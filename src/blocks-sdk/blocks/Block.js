@@ -1,5 +1,6 @@
 // @flow
 
+// FIXME: move this file to util
 import { assert } from '../base/assert';
 import { dumpUint8ArrayToHexString } from '../util/BitConversionUtils';
 
@@ -13,6 +14,7 @@ function calculatePacketChecksum(arr: Uint8Array) {
   return checksum & 0x7F;
 }
 
+// FIXME: move this function to BlockDevice
 export function buildBlockSysExData(deviceIndex: number, arr: Array<number>, checksumToVerify: ?number = null): Uint8Array {
   const data = new Uint8Array(arr.length + 8);
   data.set([0xF0, 0x00, 0x21, 0x10, 0x77]);
@@ -24,7 +26,7 @@ export function buildBlockSysExData(deviceIndex: number, arr: Array<number>, che
   if (checksumToVerify != null) {
     assert(checksum === checksumToVerify);
   }
-  if (true || checksumToVerify == null) {
+  if (deviceIndex === 0x01) {
     console.debug('buildBlockSysExData', data.length, dumpUint8ArrayToHexString(data));
   }
   return data;
@@ -62,6 +64,7 @@ export const blockProgramPacketDump2 = `
 
 export function getPacketDataFromDumpString(dumpStr: string): Uint8Array {
   const hexStr = dumpStr.split('\n')
+    .map(line => line.trim())
     .map(line => line.length > 4 ? line.substr(4) : line)
     .join(' ').replace(/ {2}/g, ' ').trim();
   const length = Math.ceil(hexStr.length / 3);
