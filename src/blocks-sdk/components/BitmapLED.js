@@ -144,7 +144,7 @@ export class BitmapLED extends React.Component<Props, State> {
     this.forceUpdate();
   }
 
-  endUpdateAndGetDataChangeListMessage(): ?Array<number> {
+  endUpdateAndGetDataChangeListMessage(): ?Array<Array<number>> {
     this.endUpdate();
     this._dataArr = to16bitColorArray(this._colorArr);
 

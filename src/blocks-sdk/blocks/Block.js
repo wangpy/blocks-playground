@@ -26,9 +26,7 @@ export function buildBlockSysExData(deviceIndex: number, arr: Array<number>, che
   if (checksumToVerify != null) {
     assert(checksum === checksumToVerify);
   }
-  if (deviceIndex === 0x01) {
-    console.debug('buildBlockSysExData', data.length, dumpUint8ArrayToHexString(data));
-  }
+  console.debug('buildBlockSysExData for messageAck', data.length, dumpUint8ArrayToHexString(data));
   return data;
 }
 

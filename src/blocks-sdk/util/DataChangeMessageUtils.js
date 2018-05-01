@@ -28,80 +28,180 @@ import { kPacketCounterMaxValue } from "../protocol/BlocksProtocolDefinitions";
   -> ...
   -> ( endOfPacket | endOfChanges ) 
 */
-class DataChangeListBuilder extends Packed7BitArrayBuilder {
-  constructor(packetIndex: number) {
-    super();
+class DataChangeListBuilder {
+  _builder: Packed7BitArrayBuilder;
+  _queuedData: Array<Array<number>>;
+  _packetIndex: number;
+  _maxPacketSize: number;
+  constructor(startPacketIndex: number, maxPacketSize: ?number) {
+    this._queuedData = [];
+    this._packetIndex = startPacketIndex;
+    if (maxPacketSize != null) {
+      this._maxPacketSize = maxPacketSize;
+    } else {
+      this._maxPacketSize = 200;
+    }
+    this.initBuilder();
+  }
+
+  initBuilder() {
+    this._builder = new Packed7BitArrayBuilder();
     // write command message type
-    this.writeBits(2, 7);
+    this._builder.writeBits(2, 7);
     // write packet index
-    this.writeBits(packetIndex & kPacketCounterMaxValue, 16);
+    this._builder.writeBits(this._packetIndex & kPacketCounterMaxValue, 16);
   }
 
-  appendEndOfPacket() {
-    this.writeBits(0, 3);
+  appendEndOfPacket(builder: ?Packed7BitArrayBuilder) {
+    //console.debug('DataChangeListBuilder.appendEndOfPacket');
+    const b = builder || this._builder;
+    b.writeBits(0, 3);
   }
 
-  appendEndOfChanges() {
+  appendEndOfChanges(builder: ?Packed7BitArrayBuilder) {
     //console.debug('DataChangeListBuilder.appendEndOfChanges');
-    this.writeBits(1, 3);
+    const b = builder || this._builder;
+    b.writeBits(1, 3);
   }
 
-  appendSkipBytes(skipCount: number) {
+  appendSkipBytes(startIndex: number, skipCount: number): number {
+    //console.debug('DataChangeListBuilder.appendSkipBytes startIndex', startIndex);
+    let i = startIndex;
     while (skipCount > 0) {
+      i = this.queueDataAndCreateNewPacketIfNecessary(i, 3);
       if (skipCount > 255) {
         // skipBytesMany
-        //console.debug('DataChangeListBuilder.appendSkipBytes skip many', 255);
-        this.writeBits(3, 3);
-        this.writeBits(255, 8);
+        //console.debug('DataChangeListBuilder.appendSkipBytes skip many', 255, 'index', i);
+        this._builder.writeBits(3, 3);
+        this._builder.writeBits(255, 8);
+        i += 255;
         skipCount -= 255;
       } else if (skipCount > 15) {
         // skipBytesMany
-        //console.debug('DataChangeListBuilder.appendSkipBytes skip many', skipCount);
-        this.writeBits(3, 3);
-        this.writeBits(skipCount, 8);
+        //console.debug('DataChangeListBuilder.appendSkipBytes skip many', skipCount, 'index', i);
+        this._builder.writeBits(3, 3);
+        this._builder.writeBits(skipCount, 8);
+        i += skipCount;
         skipCount = 0;
       } else {
         // skipBytesFew
-        //console.debug('DataChangeListBuilder.appendSkipBytes skip few', skipCount);
-        this.writeBits(2, 3);
-        this.writeBits(skipCount, 4);
+        //console.debug('DataChangeListBuilder.appendSkipBytes skip few', skipCount, 'index', i);
+        this._builder.writeBits(2, 3);
+        this._builder.writeBits(skipCount, 4);
+        i += skipCount;
         skipCount = 0;
       }
     }
+    return i;
   }
 
-  appendSetSequenceOfBytes(byteSequence: Uint8Array) {
-    //console.debug('DataChangeListBuilder.appendSetSequenceOfBytes length', byteSequence.length);
-    this.writeBits(4, 3);
-    for (let i=0; i<byteSequence.length; i++) {
-      //console.debug('DataChangeListBuilder.appendSetSequenceOfBytes byte', i, byteSequence[i], (i + 1) < byteSequence.length);
-      this.writeBits(byteSequence[i], 8);
-      this.writeBits((i + 1) < byteSequence.length ? 1 : 0, 1);
+  appendSetSequenceOfBytes(startIndex: number, byteSequence: Uint8Array): number {
+    console.debug('DataChangeListBuilder.appendSetSequenceOfBytes length', byteSequence.length);
+    let bytesWritten = 0;
+    let i = startIndex;
+    while (bytesWritten < byteSequence.length) {
+      const packetSizeToAdd = Math.ceil(3 / 8 + (byteSequence.length - bytesWritten) * (9 / 7));
+      const availablePacketSize = this.getAvailableDataSizeForCurrentPacket();
+      //console.log('DataChangeListBuilder.appendSetSequenceOfBytes split', sizeToAdd, availableSize)
+      let bytesToAdd = byteSequence.length - bytesWritten;
+      if (availablePacketSize < packetSizeToAdd) {
+        bytesToAdd = Math.floor((availablePacketSize - 3 / 8) / (9 / 7));
+      }
+      let bytesLeftToAdd = bytesToAdd;
+      this._builder.writeBits(4, 3); // setSequenceOfBytes
+      for (let i = bytesWritten; i < byteSequence.length && bytesLeftToAdd > 0; i++ , bytesWritten++ , bytesLeftToAdd--) {
+        //console.debug('DataChangeListBuilder.appendSetSequenceOfBytes byte', i, byteSequence[i], bytesLeftToAdd);
+        this._builder.writeBits(byteSequence[i], 8);
+        this._builder.writeBits((bytesLeftToAdd > 1 && i < (byteSequence.length - 1)) ? 1 : 0, 1);
+      }
+      i += bytesToAdd;
+      if (availablePacketSize < packetSizeToAdd) {
+        this.queueDataAndCreateNewPacket(i);
+      }
     }
+    return i;
   }
 
-  getFinalizedData(): Array<number> {
-    const finalizedBuilder = this.clone();
-    this.appendEndOfChanges.apply(finalizedBuilder);
-    return finalizedBuilder.getData();
+  appendSetBytesWithCountAndValue(startIndex: number, bytesCount: number, value: number): number {
+    let useLastValue = false;
+    let i = startIndex;
+    while (bytesCount > 0) {
+      this.queueDataAndCreateNewPacketIfNecessary(i, 3);
+      if (bytesCount > 255) {
+        // setManyBytesWithValue
+        this._builder.writeBits(7, 3);
+        this._builder.writeBits(255, 8);
+        this._builder.writeBits(value, 8);
+        i += 255;
+        bytesCount -= 255;
+      } else if (bytesCount > 15) {
+        // setManyBytesWithValue
+        this._builder.writeBits(7, 3);
+        this._builder.writeBits(bytesCount, 8);
+        this._builder.writeBits(value, 8);
+        i += bytesCount;
+        bytesCount = 0;
+      } else if (useLastValue) {
+        // setFewBytesWithLastValue
+        this._builder.writeBits(6, 3);
+        this._builder.writeBits(bytesCount, 4);
+        i += bytesCount;
+        bytesCount = 0;
+      } else {
+        // setFewBytesWithValue
+        this.writeBits(5, 3);
+        this.writeBits(bytesCount, 4);
+        this.writeBits(value, 8);
+        i += bytesCount;
+        bytesCount = 0;
+      }
+      useLastValue = true;
+    }
+    return i;
   }
 
-  writeBits(value:number, bits:number) {
-    super.writeBits(value, bits);
-    //console.debug('DataChangeListBuilder.writeBits', value, bits);
-  }  
+  getAvailableDataSizeForCurrentPacket(sizeToAdd: number) {
+    const availableSize = this._maxPacketSize - this._builder.size();
+    return availableSize;
+  }
+
+  queueDataAndCreateNewPacketIfNecessary(startIndex: number, sizeToAdd: number): number {
+    const availableSize = this.getAvailableDataSizeForCurrentPacket();
+    if (availableSize < sizeToAdd) {
+      this.queueDataAndCreateNewPacket(startIndex);
+      return this._maxPacketSize;
+    }
+    return availableSize;
+  }
+
+  queueDataAndCreateNewPacket(skipBase: number) {
+    const finalizedBuilder = this._builder.clone();
+    this.appendEndOfPacket(finalizedBuilder);
+    this._queuedData.push(finalizedBuilder.getData());
+    this._packetIndex++;
+    this.initBuilder();
+    this.appendSkipBytes(skipBase, skipBase);
+  }
+
+  getFinalizedQueuedData() {
+    const finalizedBuilder = this._builder.clone();
+    this.appendEndOfChanges(finalizedBuilder);
+    this._queuedData.push(finalizedBuilder.getData());
+    //console.debug("DataChangeListBuilder.getFinalizedQueuedData", this._queuedData);
+    return this._queuedData;
+  }
 }
 
-export function computeDataChangeListMessage(newData: Uint8Array, oldData: Uint8Array, skipBase: number, length: number, packetIndex: number): Array<number> {
-  const builder = new DataChangeListBuilder(packetIndex);
+export function computeDataChangeListMessage(newData: Uint8Array, oldData: Uint8Array, skipBase: number, length: number, packetIndex: number, maxPacketSize: ?number): Array<Array<number>> {
+  const builder = new DataChangeListBuilder(packetIndex, maxPacketSize);
   let count = skipBase;
   let isSkipping = true;
   let i = 0;
   while (i < length) {
     let toPos = i;
-    while (toPos < length && 
-        ((isSkipping && newData[toPos] === oldData[toPos]) 
-          || (!isSkipping && newData[toPos] !== oldData[toPos]))) {
+    while (toPos < length &&
+      ((isSkipping && newData[toPos] === oldData[toPos])
+        || (!isSkipping && newData[toPos] !== oldData[toPos]))) {
       toPos++;
       count++;
     }
@@ -109,16 +209,16 @@ export function computeDataChangeListMessage(newData: Uint8Array, oldData: Uint8
     // add message
     if (isSkipping && (toPos < length)) {
       //console.debug('computeDataChangeListMessage', 'fromPos', i, 'toPos', toPos, 'appendSkipBytes', count);
-      builder.appendSkipBytes(count);
+      builder.appendSkipBytes(skipBase + i, count);
     } else if (!isSkipping) {
       //console.debug('computeDataChangeListMessage', 'fromPos', i, 'toPos', toPos, 'appendSetSequenceOfBytes', newData.subarray(i, toPos));
-      builder.appendSetSequenceOfBytes(newData.subarray(i, toPos));
+      builder.appendSetSequenceOfBytes(skipBase + i, newData.subarray(i, toPos));
     }
 
     isSkipping = !isSkipping;
     i = toPos;
     count = 0;
   }
-  
-  return builder.getFinalizedData();
+
+  return builder.getFinalizedQueuedData();
 }

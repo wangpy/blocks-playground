@@ -92,11 +92,10 @@ export class Lightpad extends BlocksDevice {
       }
 
       if (isLastDataChangePacketAcked) {
-        const message = bitmapLED.endUpdateAndGetDataChangeListMessage();
+        const messages = bitmapLED.endUpdateAndGetDataChangeListMessage();
 
-        if (message != null && message.length > 0) {
-          this.sendSysEx(message);
-          this.increasePacketCounter();
+        if (messages != null && messages.length > 0) {
+          this.sendMultipleSysEx(messages);
         }
       } else {
         bitmapLED.endUpdate();

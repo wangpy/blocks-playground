@@ -88,6 +88,7 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
   _isErrorReported: boolean;
   _customCode: string;
   _customFunctions: CustomFunctions;
+  _sysExQueue: ?Array<Array<number>>;
 
   constructor(props: BlocksDeviceProps) {
     super(props);
@@ -107,6 +108,7 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
       touchMove: null,
       touchEnd: null
     };
+    this._sysExQueue = [];
   }
 
   closeDevice() {
@@ -140,6 +142,20 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
 
   sendSysEx(dataArr: Array<number>, checksumToVerify: ?number) {
     this.props.topology.sendSysEx(this.props.deviceIndex, dataArr, checksumToVerify);
+  }
+
+  sendMultipleSysEx(multipleDataArr: Array<Array<number>>) {
+    this._sysExQueue = multipleDataArr;
+    this.sendRemainingQueuedDataIfAvailable();
+  }
+
+  sendRemainingQueuedDataIfAvailable(): boolean {
+    if (this._sysExQueue.length === 0) {
+      return false;
+    }
+    this.sendSysEx(this._sysExQueue.shift());
+    this.increasePacketCounter();
+    return true;
   }
 
   isLastDataChangePacketAcked() {
@@ -196,9 +212,11 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
               break;
             }
             const ackedPacketCounter = message.getField('packetCounter');
-            console.debug('received ack', this.props.deviceIndex, ackedPacketCounter, (this._promiseResolverForAck != null) ? 'shouldResolvePromiseForAck!' : '');
+            console.debug('received messageAck', this.props.deviceIndex, ackedPacketCounter, (this._promiseResolverForAck != null) ? 'shouldResolvePromiseForAck!' : '');
             this._ackedPacketCounter = ackedPacketCounter;
-            if (this._promiseResolverForAck != null) {
+            if (this.sendRemainingQueuedDataIfAvailable()) {
+              // do nothing
+            } else if (this._promiseResolverForAck != null) {
               setTimeout(this._promiseResolverForAck, 100);
               this._promiseResolverForAck = null;
               this._promiseRejecterForAck = null;
