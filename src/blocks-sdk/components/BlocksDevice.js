@@ -212,8 +212,16 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
               break;
             }
             const ackedPacketCounter = message.getField('packetCounter');
-            console.debug('received messageAck', this.props.deviceIndex, ackedPacketCounter, (this._promiseResolverForAck != null) ? 'shouldResolvePromiseForAck!' : '');
-            this._ackedPacketCounter = ackedPacketCounter;
+            console.debug('received messageAck', this.props.deviceIndex, ackedPacketCounter, this._packetCounter, (this._promiseResolverForAck != null) ? 'shouldResolvePromiseForAck!' : '');
+            // check if received ACK packet counter is the same as previous.
+            // If so, might need to do error recovery
+            if (this._ackedPacketCounter === ackedPacketCounter) {
+              this.onPacketCounterStuck(ackedPacketCounter);
+              // force next packet counter to the next of ACKed packet counter
+              this._packetCounter = ((this._ackedPacketCounter + 1) & kPacketCounterMaxValue);
+            } else {
+              this._ackedPacketCounter = ackedPacketCounter;
+            }
             if (this.sendRemainingQueuedDataIfAvailable()) {
               // do nothing
             } else if (this._promiseResolverForAck != null) {
@@ -391,6 +399,7 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
   onDeviceTouchStart = (touchIndex: number, x: number, y: number, vz: number) => { };
   onDeviceTouchMove = (touchIndex: number, x: number, y: number, vz: number) => { };
   onDeviceTouchEnd = (touchIndex: number, x: number, y: number, vz: number) => { };
+  onPacketCounterStuck = (packetCounter: number) => { };
 
   ///////////////
   // api start

@@ -74,11 +74,16 @@ export class Lightpad extends BlocksDevice {
     this.forceUpdate();
   };
 
+  onPacketCounterStuck = (packetCounter: number) => {
+    console.debug('onPacketCounterStuck', packetCounter);
+    // TODO
+  };
+
   handleRepaint = () => {
     const bitmapLED = this._bitmapLED;
     if (bitmapLED != null) {
       const isLastDataChangePacketAcked = this.isLastDataChangePacketAcked();
-      console.debug('handleRepaint', isLastDataChangePacketAcked);
+      //console.debug('handleRepaint', isLastDataChangePacketAcked);
       bitmapLED.beginUpdate(isLastDataChangePacketAcked);
 
       try {
