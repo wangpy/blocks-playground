@@ -4,6 +4,7 @@ import * as React from 'react';
 import { MIDIDeviceManager, type MIDIDevice } from './MIDIDeviceManager';
 import { assert } from '../base/assert';
 import { buildBlockSysExData } from '../blocks/Block';
+import { TopologyDeviceInfo } from '../protocol/BlocksProtocolDefinitions';
 import { BlocksDevice, kMockDeviceIndex } from './BlocksDevice';
 import { Lightpad } from './Lightpad';
 import {
@@ -20,6 +21,7 @@ type Props = {
 
 type DeviceTopologyInfo = {
   deviceIndex: number,
+  topologyDeviceInfo: TopologyDeviceInfo,
   deviceType: string,
   midiDevice: MIDIDevice,
 }
@@ -54,6 +56,10 @@ export class BlocksTopology extends React.Component<Props, State> {
         }
       ]
     };
+  }
+
+  getDeviceTopology(): ?Object {
+    return this._deviceTopology;
   }
 
   getMIDIDeviceFromDeviceIndex(deviceIndex: number): ?MIDIDevice {
@@ -120,11 +126,12 @@ export class BlocksTopology extends React.Component<Props, State> {
           }
           if (midiDevice != null && this._deviceTopology != null) {
             this.setState({
-              deviceTopology: this._deviceTopology.devices.map(device => {
+              deviceTopology: this._deviceTopology.devices.map(topologyDeviceInfo => {
                 return {
-                  deviceIndex: device.topologyIndex,
-                  deviceType: 'Lightpad', // TODO: device deviceType from device.blockSerialNumber
-                  midiDevice
+                  deviceIndex: topologyDeviceInfo.topologyIndex,
+                  deviceType: 'Lightpad', // TODO: derive deviceType from topologyDeviceInfo.blockSerialNumber
+                  midiDevice,
+                  topologyDeviceInfo
                 };
               })
             });
@@ -179,6 +186,13 @@ export class BlocksTopology extends React.Component<Props, State> {
     }
   };
 
+  sendMessageToDevice = (deviceIndex: int, param1: int, param2: int, param3: int) => {
+    const device = this._devices[deviceIndex];
+    if (device != null) {
+      BlocksDevice.prototype.handleMessageFromOtherDevice.apply(device, [param1, param2, param3]);
+    }
+  };
+
   sendRequestTopologySysExToDevice(midiDevice: MIDIDevice) {
     console.debug('sendRequestTopologySysExToDevice', midiDevice);
     this.sendSysExToMidiDevice(midiDevice, buildBlockSysExData(0x00, [0x01, 0x01, 0x00], 0x5D));
@@ -221,6 +235,7 @@ export class BlocksTopology extends React.Component<Props, State> {
                   key={info.deviceIndex}
                   topology={topology}
                   deviceIndex={info.deviceIndex}
+                  topologyDeviceInfo={info.topologyDeviceInfo}
                   onCodeExecutionError={this.handleCodeExecutionError.bind(topology)}
                   ref={c => (c != null) ? this._devices[info.deviceIndex] = c : null} />
               );

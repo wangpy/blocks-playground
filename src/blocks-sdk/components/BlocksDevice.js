@@ -9,6 +9,7 @@ import {
 import {
   getBlocksMessageType,
   MessageFromDevice,
+  TopologyDeviceInfo,
   TouchMessage,
   TouchWithVelocityMessage,
   DeviceAckMessage,
@@ -41,6 +42,19 @@ const kCodeToExecute = `(function(env){
   var drawPressureMap = env.drawPressureMap;
   var fadePressureMap = env.fadePressureMap;
   var clearDisplay = env.clearDisplay;
+
+  var getBatteryLevel = env.getBatteryLevel;
+  var isBatteryCharging = env.isBatteryCharging;
+  var isMasterBlock = env.isMasterBlock;
+  var setStatusOverlayActive = env.setStatusOverlayActive;
+  var getNumBlocksInTopology = env.getNumBlocksInTopology;
+  var getBlockIDForIndex = env.getBlockIDForIndex;
+  var getBlockIDOnPort = env.getBlockIDOnPort;
+  var getPortToMaster = env.getPortToMaster;
+  var getBlockTypeForID = env.getBlockTypeForID;
+  var sendMessageToBlock = env.sendMessageToBlock;
+  var sendMessageToHost = env.sendMessageToHost;
+
   var sendMIDI = env.sendMIDI;
   var sendNoteOn = env.sendNoteOn;
   var sendNoteOff = env.sendNoteOff;
@@ -49,15 +63,33 @@ const kCodeToExecute = `(function(env){
   var sendPC = env.sendPC;
   var sendPitchBend = env.sendPitchBend;
   var sendChannelPressure = env.sendChannelPressure;
-  
+
+  var min = env.min;
+  var max = env.max;
+  var clamp = env.clamp;
+  var abs = env.abs;
+  var map = env.map;
+  var mod = env.mod;
+  var getRandomFloat = env.getRandomFloat;
+  var getRandomInt = env.getRandomInt;
+  var getMillisecondCounter = env.getMillisecondCounter;
+  var getFirmwareVersion = env.getFirmwareVersion;
+  var log = env.log;
+  var logHex = env.logHex;
+  var getTimeInCurrentFunctionCall = env.getTimeInCurrentFunctionCall;
+
   {{CUSTOM_CODE}}
 
   return {
     initialise: (typeof initialise === 'function') ? initialise : null,
     repaint: (typeof repaint === 'function') ? repaint : null,
+    handleButtonDown: (typeof handleButtonDown === 'function') ? handleButtonDown: null,
+    handleButtonUp: (typeof handleButtonUp === 'function') ? handleButtonUp: null,
     touchStart: (typeof touchStart === 'function') ? touchStart : null,
     touchMove: (typeof touchMove === 'function') ? touchMove : null,
     touchEnd: (typeof touchEnd === 'function') ? touchEnd: null,
+    handleMessage: (typeof handleMessage === 'function') ? handleMessage: null,
+    handleMIDI: (typeof handleMIDI === 'function') ? handleMIDI: null,
   }
 })`;
 
@@ -70,6 +102,7 @@ export type BlocksDeviceProps = {
   code: string,
   deviceIndex: number,
   topology: BlocksTopology,
+  topologyDeviceInfo: TopologyDeviceInfo,
   onCodeExecutionError(error: *): void,
 };
 
@@ -106,7 +139,9 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
       repaint: null,
       touchStart: null,
       touchMove: null,
-      touchEnd: null
+      touchEnd: null,
+      handleMessage: null,
+      handleMIDI: null
     };
     this._sysExQueue = [];
   }
@@ -405,6 +440,8 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
   // api start
   ///////////////
 
+  //// Controlling and repainting the Lightpad
+
   makeARGB = (a: number, r: number, g: number, b: number) => {
     return makeARGB(a, r, g, b);
   };
@@ -476,6 +513,143 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
     }
   };
 
+  //// Communication and configuration
+
+  getBatteryLevel = (): number => {
+    if (this.props.topologyDeviceInfo != null)
+      return this.props.topologyDeviceInfo.batteryLevel / 32;
+    return 0;
+  };
+
+  isBatteryCharging = (): bool => {
+    if (this.props.topologyDeviceInfo != null)
+      return this.props.topologyDeviceInfo.batteryCharging === 1;
+    return false;
+  };
+
+  /** Returns true if this block is directly connected to the application,
+    as opposed to only being connected to a different block via a connection port.
+   */
+  isMasterBlock = (): bool => {
+    // TODO
+    return false;
+  };
+
+  /** Returns true if this block is directly connected to the host computer. */
+  isConnectedToHost = (): bool => {
+    // TODO
+    return false;
+  };
+
+  /** Called when a block receives a message.
+    @see sendMessageToBlock
+   */
+  handleMessageFromOtherDevice(param1: number, param2: number, param3: number) {
+    console.log('handleMessageFromOtherDevice', this.props.deviceIndex, param1, param2, param3);
+    this.getCustomFunction('handleMessage')(param1, param2, param3);
+  }
+
+  setStatusOverlayActive = (active: bool) => {
+    // TODO
+  };
+
+  /** Returns the number of blocks in the current topology. */
+  getNumBlocksInTopology = (): number => {
+    let topologyInfo = this.props.topology.getDeviceTopology();
+    if (topologyInfo != null) {
+      return topologyInfo.devices.length;
+    }
+    return 0;
+  };
+
+  /** Returns the ID of the block at a given index in the topology. */
+  getBlockIDForIndex = (index: number): number => {
+    if (index < 0 || index >= this.getNumBlocksInTopology()) {
+      return 0;
+    }
+    let topologyInfo = this.props.topology.getDeviceTopology();
+    if (topologyInfo != null) {
+      return topologyInfo.devices[index].topologyIndex;
+    }
+    return 0;
+  };
+
+  /** Returns the ID of the block connected to a specified port. */
+  getBlockIDOnPort = (index: number): number => {
+    // NOTE(wangpy): different than Littlefoot: get self block ID
+    if (index === 0xFF) {
+      return this.props.deviceIndex;
+    }
+    let topologyInfo = this.props.topology.getDeviceTopology();
+    if (topologyInfo != null) {
+      let connections = topologyInfo.connections;
+      for (var i = 0; i < connections.length; i++) {
+        let connection = connections[i];
+        if (connection.deviceIndex1 === this.props.deviceIndex
+          && connection.portIndex1 === index) {
+          return connection.deviceIndex2;
+        }
+        if (connection.deviceIndex2 === this.props.deviceIndex
+          && connection.portIndex2 === index) {
+          return connection.deviceIndex1;
+        }
+      }
+      // not found in connections data
+      return 0;
+    }
+    return 0;
+  };
+
+  /** Returns the port number that is connected to the master block. Returns 0xFF if there is no path. */
+  getPortToMaster = (): number => {
+    return 0xFF;
+  };
+
+  /** Returns the block type of the block with this ID. */
+  // 0: N/A
+  // 1: LightPad
+  getBlockTypeForID = (blockID: number): number => {
+    let topologyInfo = this.props.topology.getDeviceTopology();
+    if (topologyInfo != null) {
+      let devices = topologyInfo.devices;
+      for (var i = 0; i < devices.length; i++) {
+        let device = devices[i];
+        if (device.topologyIndex === blockID) {
+          // TODO: detect block type from topology info
+          return 1;
+        }
+      }
+      // not found in devices data
+      return 0;
+    }
+    return 0;
+  };
+
+  /** Sends a message to the block with the specified ID. 
+      This will be processed in the handleMessage() callback.
+      
+      @param blockID     the ID of the block to send this message to
+      @param param1      the first chunk of data to send
+      @param param2      the second chunk of data to send
+      @param param3      the third chunk of data to send
+  */
+  sendMessageToBlock = (blockID: number, param1: number, param2: number, param3: number) => {
+    this.props.topology.sendMessageToDevice(blockID, param1, param2, param3);
+  };
+
+  /** Sends a message to the host. 
+      To receive this the host will need to implement the Block::ProgramEventListener::handleProgramEvent() method.
+      
+      @param param1      the first chunk of data to send
+      @param param2      the second chunk of data to send
+      @param param3      the third chunk of data to send
+  */
+  sendMessageToHost = (param1: number, param2: number, param3: number) => {
+    // TODO
+  };
+
+  //// MIDI functions
+
   sendMIDI = (byte0: number, byte1: ?number, byte2: ?number) => {
     let dataArr = [byte0 & 0xFF];
     if (byte1 != null) {
@@ -485,37 +659,110 @@ export class BlocksDevice extends React.Component<BlocksDeviceProps, State> {
       dataArr.push(byte2 & 0x7F);
     }
     this.props.topology.sendMidiDataToSelectedOutputPort(new Uint8Array(dataArr));
-  }
+  };
 
   sendNoteOn = (channel: number, noteNumber: number, velocity: number) => {
     this.sendMIDI(0x90 | (channel & 0x0F), noteNumber, velocity);
-  }
+  };
 
   sendNoteOff = (channel: number, noteNumber: number, velocity: number) => {
     this.sendMIDI(0x80 | (channel & 0x0F), noteNumber, velocity);
-  }
+  };
 
   sendAftertouch = (channel: number, noteNumber: number, level: number) => {
     this.sendMIDI(0xA0 | (channel & 0x0F), noteNumber, level);
-  }
+  };
 
   sendCC = (channel: number, controller: number, value: number) => {
     this.sendMIDI(0xB0 | (channel & 0x0F), controller, value);
-  }
+  };
 
   sendPC = (channel: number, program: number) => {
     this.sendMIDI(0xC0 | (channel & 0x0F), program);
-  }
+  };
 
   sendPitchBend = (channel: number, position: number) => {
     const lsb = position & 0x7F;
     const msb = (position >> 7) & 0x7F;
     this.sendMIDI(0xE0 | (channel & 0x0F), lsb, msb);
-  }
+  };
 
   sendChannelPressure = (channel: number, pressure: number) => {
     this.sendMIDI(0xD0 | (channel & 0x0F), pressure);
-  }
+  };
+
+  //// Maths
+
+  min = (a: number, b: number): number => {
+    return Math.min(a, b);
+  };
+
+  max = (a: number, b: number): number => {
+    return Math.max(a, b);
+  };
+
+  clamp = (lowerLimit: number, upperLimit: number, valueToConstrain): number => {
+    return Math.min(Math.max(valueToConstrain, lowerLimit), upperLimit);
+  };
+
+  abs = (arg: number): number => {
+    return Math.abs(arg);
+  };
+
+  /** Remaps a value from a source range to a target range.
+      
+      @param value        the value within the source range to map
+      @param sourceMin    the minimum value of the source range
+      @param sourceMax    the maximum value of the source range
+      @param destMin      the minumum value of the destination range (optional, default=0.0)
+      @param destMax      the maximum value of the destination range (optional, default=1.0)
+  
+      @returns    the original value mapped to the destination range
+  */
+  map = (value: number, sourceMin: number, sourceMax: number, destMin: number, destMax: number): number => {
+    if (sourceMin === sourceMax) {
+      return destMin;
+    }
+    let clampValue = Math.min(Math.max(value, sourceMin), sourceMax);
+    let sourceRangeRatio = (clampValue - sourceMin) / (sourceMax - sourceMin);
+    let destValue = destMin + (destMax - destMin) * sourceRangeRatio;
+    return destValue;
+  };
+
+  mod = (dividend: number, divisor: number): number => {
+    return Math.mod(dividend, divisor);
+  };
+
+  getRandomFloat = (): number => {
+    return Math.random();
+  };
+
+  getRandomInt = (maxValue: number): number => {
+    return Math.floor(maxValue * Math.random());
+  };
+
+  getMillisecondCounter = (): number => {
+    // TODO
+    return 0;
+  };
+
+  getFirmwareVersion = (): number => {
+    // TODO
+    return 0;
+  };
+
+  log = (data: *): number => {
+    console.log("BlocksDevice log", this.props.deviceIndex, data);
+  };
+
+  logHex = (data: number): number => {
+    console.log("BlocksDevice logHex", this.props.deviceIndex, parseInt(data, 16));
+  };
+
+  getTimeInCurrentFunctionCall = (): number => {
+    // TODO
+    return 0;
+  };
 
   ///////////////
   // api end
