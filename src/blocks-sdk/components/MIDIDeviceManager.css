@@ -1,0 +1,7 @@
+.ports-dropdown {
+  margin: 5px;
+}
+
+.ports-dropdown .selected-port {
+  font-weight: bold;
+}
