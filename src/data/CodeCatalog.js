@@ -5,6 +5,7 @@ import { kSampleCodeTestDrawingAPI } from './samples/TestDrawingAPI';
 import { kSampleCodeTestMIDIEvents } from './samples/TestMIDIEvents';
 import { kSampleCodeSnakeGame } from './samples/SnakeGame';
 import { kSampleCodeDrawImageOrVideo } from './samples/DrawImageOrVideo';
+import { kSampleCodeSmartChordAppregioPlayer } from './samples/SmartChordAppregioPlayer';
 
 const kSampleCodes: { [string]: string } = {
   EmptyTemplate: kSampleCodeEmptyTemplate,
@@ -12,6 +13,7 @@ const kSampleCodes: { [string]: string } = {
   TestMIDIEvents: kSampleCodeTestMIDIEvents,
   SnakeGame: kSampleCodeSnakeGame,
   DrawImageOrVideo: kSampleCodeDrawImageOrVideo,
+  SmartChordAppregioPlayer: kSampleCodeSmartChordAppregioPlayer,
 };
 
 export class CodeCatalog {
