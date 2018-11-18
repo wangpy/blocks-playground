@@ -4,12 +4,14 @@ import { kSampleCodeEmptyTemplate } from './samples/EmptyTemplate';
 import { kSampleCodeTestDrawingAPI } from './samples/TestDrawingAPI';
 import { kSampleCodeTestMIDIEvents } from './samples/TestMIDIEvents';
 import { kSampleCodeSnakeGame } from './samples/SnakeGame';
+import { kSampleCodeDrawImageOrVideo } from './samples/DrawImageOrVideo';
 
 const kSampleCodes: { [string]: string } = {
   EmptyTemplate: kSampleCodeEmptyTemplate,
   TestDrawingAPI: kSampleCodeTestDrawingAPI,
   TestMIDIEvents: kSampleCodeTestMIDIEvents,
   SnakeGame: kSampleCodeSnakeGame,
+  DrawImageOrVideo: kSampleCodeDrawImageOrVideo,
 };
 
 export class CodeCatalog {
