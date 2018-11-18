@@ -219,6 +219,7 @@ export class BlocksTopology extends React.Component<Props, State> {
     const topology = this;
     return (
       <div>
+        <div id="custom-control"></div>
         <MIDIDeviceManager
           onMIDIMessage={this.handleMIDIMessage.bind(this)}
           onMIDISuccess={this.handleMIDISuccess}
