@@ -33,6 +33,10 @@ export class Lightpad extends BlocksDevice {
     this._isMouseDown = false;
 
     try {
+      const customControlElement = document.getElementById('custom-control');
+      if (customControlElement != null) {
+        customControlElement.innerHTML = '';
+      }
       this.getCustomFunction('initialise')();
 
       if (this._repaintIntervalID === null) {
