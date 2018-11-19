@@ -1,5 +1,4 @@
 export const kSampleCodeDrawImageOrVideo = `
-
 /*
  * Display Image / video
  *
@@ -9,7 +8,9 @@ export const kSampleCodeDrawImageOrVideo = `
  * 1. Choose the file to load using left side "Choose File" button.
  *    (If file content does not appear below the button, try again)
  * 2. Touch X / Y to change image brightness / contrast.
- * 3. Apply pressure to reduce video playing speed.
+ * 3. While video is playing:
+ *    - Apply pressure to reduce video playing speed.
+ *    - Tap on the bottom gray line to change video playing position.
  */
 
 // Add global variables here - DO NOT CALL API FUNCTIONS HERE
@@ -24,6 +25,7 @@ var canvasImageData = null;
 var touchPosX = 0;
 var touchPosY = 0;
 var touchPosVZ = 0;
+var isVideo = false;
 
 function drawElementToCanvasToDisplay(element, sourceWidth, sourceHeight) {
   // Resize the image
@@ -70,15 +72,17 @@ function handleUploadFileChanged(event) {
             uploadedImageElement.src = readerEvent.target.result;
             uploadedImageElement.style.display = 'block';
             uploadedVideoElement.style.display = 'none';
+            isVideo = false;
         }
         reader.readAsDataURL(file);
     } else if (file.type.match(/^video\\//)) {
-        // Load the image
+        // Load the video
         var reader = new FileReader();
         reader.onload = function (readerEvent) {
             uploadedVideoElement.onloadedmetadata = function(event) {
               uploadedVideoElement.style.display = 'block';
               uploadedImageElement.style.display = 'none';
+              isVideo = true;
               uploadedVideoElement.controls = true;
               videoLoopInterval = setInterval(videoLoop, 100);
             };
@@ -115,6 +119,7 @@ function loadImageFromURL(url) {
         uploadedImageElement.src = dataURL;
         uploadedImageElement.style.display = 'block';
         uploadedVideoElement.style.display = 'none';
+        isVideo = false;
     };
 
     xmlHTTP.send();
@@ -184,6 +189,12 @@ function repaint() {
   // Draw and fade touch points.
   drawPressureMap();
   fadePressureMap();
+
+  if (isVideo) {
+    fillRect(makeARGB(255, 64, 64, 64), 0, 14, 15, 1);  
+    var headPos = Math.floor(15.0 * uploadedVideoElement.currentTime / uploadedVideoElement.duration);
+    fillRect(makeARGB(255, 255, 255, 255), headPos, 14, 1, 1);
+  }
 }
 
 // touchIndex: number, first touch = 1
@@ -195,11 +206,17 @@ function touchStart(touchIndex, x, y, vz) {
   addPressurePoint(makeARGB(255, 255, 255, 0), x, y, vz);
   
   if (touchIndex === 1) {
-    touchPosX = x;
-    touchPosY = y;
-    touchPosVZ = vz;
+    var xDotPos = 15 * x / 4096.0;
+    var yDotPos = 15 * y / 4096.0;
+    if (isVideo && yDotPos >= 14) {
+      uploadedVideoElement.currentTime = Math.floor(xDotPos) / 15.0 * uploadedVideoElement.duration;
+    } else {
+      touchPosX = x;
+      touchPosY = y;
+      touchPosVZ = vz;
 
-    uploadedVideoElement.playbackRate = 1.0 - (vz / 255.0);
+      uploadedVideoElement.playbackRate = 1.0 - (vz / 255.0);
+    }
   }
 }
 
